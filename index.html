@@ -6,11 +6,16 @@
     <title>Jewel Survival - Extreme</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; }
-        body { 
-            text-align: center; background: #0a0a0a; color: white; 
+        
+       body { 
+            text-align: center; 
+            /* 背景をただの黒から、深い紺のグラデーションに */
+            background: radial-gradient(circle, #1a1a2e 0%, #16213e 100%); 
+            color: white; 
             font-family: 'Arial Black', sans-serif; margin: 0; overflow: hidden; 
             position: fixed; width: 100%; height: 100%;
         }
+        
         #game-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; position: relative; }
         
         /* スコアとタイマー */
@@ -18,22 +23,44 @@
         #timer-container { width: 320px; height: 10px; background: #222; border-radius: 5px; margin-bottom: 15px; overflow: hidden; border: 1px solid #444; }
         #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
         
-        /* ボード */
-        #board { 
+       #board { 
             position: relative; width: 320px; height: 320px; 
-            background: rgba(34, 34, 34, 0.8); border: 4px solid #333; border-radius: 8px; 
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            /* ボードを半透明のガラスっぽく（グラスモーフィズム） */
+            background: rgba(255, 255, 255, 0.05); 
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; 
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
         
-        /* 宝石 */
-        .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+        /* 宝石の共通デザイン：立体感と光沢を出す */
         .gem-inner { 
-            width: 34px; height: 34px; border-radius: 8px; 
-            box-shadow: inset -3px -3px 5px rgba(0,0,0,0.4), inset 3px 3px 5px rgba(255,255,255,0.3);
+            width: 36px; height: 36px; border-radius: 10px; 
+            position: relative;
+            box-shadow: 
+                inset -4px -4px 6px rgba(0,0,0,0.4), 
+                inset 4px 4px 6px rgba(255,255,255,0.4),
+                0 4px 8px rgba(0,0,0,0.3);
             transition: transform 0.1s;
         }
-        .c0 { background: #ff4b2b; } .c1 { background: #ffb400; } .c2 { background: #00d2ff; } .c3 { background: #45a247; } .c4 { background: #8e44ad; }
-        
+
+        /* 宝石の上に「光の筋」を入れる擬似要素 */
+        .gem-inner::after {
+            content: '';
+            position: absolute;
+            top: 15%; left: 15%;
+            width: 40%; height: 25%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transform: rotate(-30deg);
+        }
+
+        /* 各色のグラデーション（単色より高級感が出るぜ！） */
+        .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ffc371); } /* 赤系 */
+        .c1 { background: radial-gradient(circle at 30% 30%, #ffdb01, #e17009); } /* 黄系 */
+        .c2 { background: radial-gradient(circle at 30% 30%, #00d2ff, #3a7bd5); } /* 青系 */
+        .c3 { background: radial-gradient(circle at 30% 30%, #92fe9d, #00c9ff); } /* 緑系 */
+        .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); } /* ピンク系 */
         /* パーティクル */
         .particle {
             position: absolute; width: 6px; height: 6px; border-radius: 50%;
