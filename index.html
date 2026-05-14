@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Combo Fixed</title>
+    <title>Jewel Survival - Bomb Edition</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         
@@ -38,6 +38,17 @@
         .gem-inner { 
             width: 36px; height: 36px; border-radius: 10px; position: relative;
             box-shadow: inset -4px -4px 6px rgba(0,0,0,0.4), inset 4px 4px 6px rgba(255,255,255,0.4), 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        /* ★ボムの見た目演出 */
+        .is-bomb .gem-inner {
+            border: 3px solid #fff;
+            box-shadow: 0 0 15px #fff, 0 0 20px #ffd700;
+            animation: bombRotate 2s linear infinite;
+        }
+        @keyframes bombRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         .gem-inner::after {
@@ -112,9 +123,9 @@
         playSound(400 + (count * 100), "square", 0.3);
     }
 
-    function createParticles(x, y, colorClass) {
+    function createParticles(x, y, colorClass, count=10) {
         const gemColor = getComputedStyle(document.querySelector('.' + colorClass)).backgroundColor;
-        for(let i=0; i<10; i++) {
+        for(let i=0; i<count; i++) {
             const p = document.createElement('div');
             p.className = 'particle'; p.style.backgroundColor = gemColor;
             p.style.left = (x + 20) + 'px'; p.style.top = (y + 20) + 'px';
@@ -145,7 +156,7 @@
         boardEl.innerHTML = '';
         board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
-            board[r][c] = { color: Math.floor(Math.random()*5), el: null };
+            board[r][c] = { color: Math.floor(Math.random()*5), el: null, isBomb: false };
         }
         draw(); 
         if(timerInterval) clearInterval(timerInterval);
@@ -161,13 +172,17 @@
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
             let d = board[r][c]; if(!d) continue;
             if(!d.el) {
-                d.el = document.createElement('div'); d.el.className = 'gem';
+                d.el = document.createElement('div'); 
+                d.el.className = 'gem' + (d.isBomb ? ' is-bomb' : '');
                 d.el.innerHTML = `<div class="gem-inner c${d.color}"></div>`;
                 boardEl.appendChild(d.el);
                 d.el.style.left = (c * SIZE) + 'px';
                 d.el.style.top = '-40px';
                 d.el.style.transform = 'scale(0)';
             }
+            // ボムになった瞬間のクラス更新
+            if(d.isBomb && !d.el.classList.contains('is-bomb')) d.el.classList.add('is-bomb');
+
             const targetTop = (r * SIZE) + 'px';
             const targetLeft = (c * SIZE) + 'px';
             setTimeout(() => {
@@ -195,33 +210,80 @@
 
     function checkAndClear() {
         let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
-        for(let r=0; r<ROWS; r++) for(let c=0; c<COLS-2; c++)
-            if(board[r][c] && board[r][c+1] && board[r][c+2] && board[r][c].color === board[r][c+1].color && board[r][c].color === board[r][c+2].color) m[r][c] = m[r][c+1] = m[r][c+2] = found = true;
-        for(let c=0; c<COLS; c++) for(let r=0; r<ROWS-2; r++)
-            if(board[r][c] && board[r+1][c] && board[r+2][c] && board[r][c].color === board[r+1][c].color && board[r][c].color === board[r+2][c].color) m[r][c] = m[r+1][c] = m[r+2][c] = found = true;
-        for(let r=0; r<ROWS-1; r++) for(let c=0; c<COLS-1; c++) {
-            if(board[r][c] && board[r][c+1] && board[r+1][c] && board[r+1][c+1]) {
-                const clr = board[r][c].color;
-                if(board[r][c+1].color===clr && board[r+1][c].color===clr && board[r+1][c+1].color===clr) m[r][c]=m[r][c+1]=m[r+1][c]=m[r+1][c+1]=found=true;
+        let bombCandidates = [];
+
+        // 横方向チェック
+        for(let r=0; r<ROWS; r++) {
+            let matchLen = 1;
+            for(let c=0; c<COLS; c++) {
+                if(c < COLS-1 && board[r][c] && board[r][c+1] && board[r][c].color === board[r][c+1].color) {
+                    matchLen++;
+                } else {
+                    if(matchLen >= 3) {
+                        found = true;
+                        for(let i=0; i<matchLen; i++) m[r][c-i] = true;
+                        if(matchLen >= 4) bombCandidates.push({r, c: c-Math.floor(matchLen/2)});
+                    }
+                    matchLen = 1;
+                }
+            }
+        }
+        // 縦方向チェック
+        for(let c=0; c<COLS; c++) {
+            let matchLen = 1;
+            for(let r=0; r<ROWS; r++) {
+                if(r < ROWS-1 && board[r][c] && board[r+1][c] && board[r][c].color === board[r+1][c].color) {
+                    matchLen++;
+                } else {
+                    if(matchLen >= 3) {
+                        found = true;
+                        for(let i=0; i<matchLen; i++) m[r-i][c] = true;
+                        if(matchLen >= 4) bombCandidates.push({r: r-Math.floor(matchLen/2), c});
+                    }
+                    matchLen = 1;
+                }
             }
         }
 
         if(found) {
             comboCount++;
-            // コンボ演出を復活！
-            if (comboCount === 1) playSound(400); 
-            else showComboEffect(comboCount);
+            if (comboCount === 1) playSound(400); else showComboEffect(comboCount);
 
             let clearedCount = 0;
-            for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if(m[r][c] && board[r][c]) {
-                createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color);
-                const el = board[r][c].el;
-                el.style.transform = 'scale(0)';
-                setTimeout(() => el.remove(), 200);
-                board[r][c] = null; clearedCount++;
+            let secondaryM = Array.from({length: ROWS}, () => Array(COLS).fill(false));
+
+            // ボムの誘爆判定
+            for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+                if(m[r][c] && board[r][c] && board[r][c].isBomb) {
+                    // 周囲3x3を消去フラグに
+                    for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) {
+                        let nr=r+dr, nc=c+dc;
+                        if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS) secondaryM[nr][nc] = true;
+                    }
+                    playSound(200, "sawtooth", 0.4); // 爆発音
+                }
             }
+
+            // 全消去実行
+            for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+                if((m[r][c] || secondaryM[r][c]) && board[r][c]) {
+                    createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, secondaryM[r][c]?20:10);
+                    const el = board[r][c].el;
+                    el.style.transform = 'scale(0)';
+                    setTimeout(() => el.remove(), 200);
+                    board[r][c] = null; clearedCount++;
+                }
+            }
+
+            // ボムの生成
+            bombCandidates.forEach(pos => {
+                if(!board[pos.r][pos.c]) { // 消えた跡地にボムを置く
+                    board[pos.r][pos.c] = { color: Math.floor(Math.random()*5), el: null, isBomb: true };
+                }
+            });
+
             score += clearedCount * 10 * comboCount;
-            timeLeft = Math.min(100, timeLeft + (clearedCount * 0.7));
+            timeLeft = Math.min(100, timeLeft + (clearedCount * 0.8));
             document.getElementById('score').innerText = score;
             setTimeout(applyGravity, 200);
         } else {
@@ -241,7 +303,7 @@
                 }
             }
             for(let i=0; i<empty; i++) {
-                board[i][c] = { color: Math.floor(Math.random()*5), el: null };
+                board[i][c] = { color: Math.floor(Math.random()*5), el: null, isBomb: false };
             }
         }
         draw();
