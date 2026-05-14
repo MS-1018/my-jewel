@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Constant Speed</title>
+    <title>Jewel Survival - Combo Fixed</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         
@@ -32,7 +32,6 @@
         .gem { 
             position: absolute; width: 40px; height: 40px; 
             display: flex; align-items: center; justify-content: center; z-index: 2;
-            /* ★ココを修正: linearにして速度を一定にし、時間を0.2sに短縮 */
             transition: left 0.2s linear, top 0.2s linear, transform 0.2s linear;
         }
         
@@ -53,6 +52,18 @@
         .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); }
         
         .particle { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 10; }
+
+        .combo-text {
+            position: absolute; width: 100%; text-align: center; font-size: 42px;
+            color: #fff; text-shadow: 0 0 15px #ff00de, 0 0 5px #000;
+            font-style: italic; pointer-events: none; z-index: 20;
+            animation: comboPop 0.6s ease-out forwards;
+        }
+        @keyframes comboPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            20% { transform: scale(1.4); opacity: 1; }
+            100% { transform: scale(1.2) translateY(-40px); opacity: 0; }
+        }
 
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
         #startBtn { padding: 15px 50px; border-radius: 40px; border: none; background: #fff; color: #000; font-weight: bold; font-size: 24px; box-shadow: 0 0 20px rgba(255,255,255,0.4); cursor: pointer; }
@@ -89,6 +100,16 @@
         g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
         o.connect(g); g.connect(audioCtx.destination);
         o.start(); o.stop(audioCtx.currentTime + dur);
+    }
+
+    function showComboEffect(count) {
+        if(count < 2) return;
+        const div = document.createElement('div');
+        div.className = 'combo-text'; div.innerText = count + " Combo!!";
+        div.style.top = "120px";
+        boardEl.appendChild(div);
+        setTimeout(() => div.remove(), 600);
+        playSound(400 + (count * 100), "square", 0.3);
     }
 
     function createParticles(x, y, colorClass) {
@@ -164,7 +185,6 @@
         let t1 = board[r1][c1], t2 = board[r2][c2];
         board[r1][c1] = t2; board[r2][c2] = t1;
         draw();
-        // ★ココを短縮: 0.2sのアニメーションに合わせて待ち時間を調整
         setTimeout(() => {
             if(!checkAndClear()) {
                 board[r1][c1] = t1; board[r2][c2] = t2; draw();
@@ -188,7 +208,10 @@
 
         if(found) {
             comboCount++;
-            playSound(400 + (comboCount * 50));
+            // コンボ演出を復活！
+            if (comboCount === 1) playSound(400); 
+            else showComboEffect(comboCount);
+
             let clearedCount = 0;
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if(m[r][c] && board[r][c]) {
                 createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color);
