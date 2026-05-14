@@ -191,12 +191,16 @@
 
     function checkAndClear() {
         let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
-        // 横/縦チェック
+        
+        // 1. 横3つの判定
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS-2; c++)
             if(board[r][c] && board[r][c+1] && board[r][c+2] && board[r][c].color === board[r][c+1].color && board[r][c].color === board[r][c+2].color) m[r][c] = m[r][c+1] = m[r][c+2] = found = true;
+        
+        // 2. 縦3つの判定
         for(let c=0; c<COLS; c++) for(let r=0; r<ROWS-2; r++)
             if(board[r][c] && board[r+1][c] && board[r+2][c] && board[r][c].color === board[r+1][c].color && board[r][c].color === board[r+2][c].color) m[r][c] = m[r+1][c] = m[r+2][c] = found = true;
-        // 四角チェック
+        
+        // 3. 四角チェック
         for(let r=0; r<ROWS-1; r++) for(let c=0; c<COLS-1; c++) {
             if(board[r][c] && board[r][c+1] && board[r+1][c] && board[r+1][c+1]) {
                 const clr = board[r][c].color;
@@ -205,8 +209,16 @@
         }
 
         if(found) {
-            comboCount++;
-            showComboEffect(comboCount);
+            comboCount++; // 連鎖数をカウントアップ
+            
+            // --- ここで音を鳴らす！連鎖するほど音が高くなる設定だぜ ---
+            const baseFreq = 400; // 基本の音の高さ
+            playSound(baseFreq + (comboCount * 80), "sine", 0.2); 
+            
+            if(comboCount >= 2) {
+                showComboEffect(comboCount);
+            }
+
             let clearedCount = 0;
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if(m[r][c] && board[r][c]) {
                 const b = board[r][c];
@@ -215,12 +227,14 @@
                 setTimeout(() => b.el.remove(), 200);
                 board[r][c] = null; clearedCount++;
             }
-            score += clearedCount * 10 * comboCount; // コンボ倍率
+            score += clearedCount * 10 * comboCount;
             timeLeft = Math.min(100, timeLeft + (clearedCount * 0.7));
             document.getElementById('score').innerText = score;
             setTimeout(applyGravity, 300);
         } else {
             isAnimating = false;
+            // 連鎖が止まったらコンボ数をリセット
+            comboCount = 0; 
         }
         return found;
     }
