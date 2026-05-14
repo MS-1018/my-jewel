@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Smooth & Juicy</title>
+    <title>Jewel Survival - Physical Logic</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         
@@ -29,12 +29,12 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden;
         }
         
-        /* 宝石の動き：cubic-bezier（イージング）で「弾むような動き」にする */
         .gem { 
             position: absolute; width: 40px; height: 40px; 
             display: flex; align-items: center; justify-content: center; z-index: 2;
+            /* 移動アニメーションを滑らかに。topは重力感、leftは入れ替え感。 */
             transition: left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                        top 0.4s cubic-bezier(0.45, 0, 0.55, 1), 
+                        top 0.4s cubic-bezier(0.3, 0, 0.2, 1), 
                         transform 0.2s ease-out;
         }
         
@@ -55,18 +55,6 @@
         .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); }
         
         .particle { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 10; }
-
-        .combo-text {
-            position: absolute; width: 100%; text-align: center; font-size: 42px;
-            color: #fff; text-shadow: 0 0 15px #ff00de, 0 0 5px #000;
-            font-style: italic; pointer-events: none; z-index: 20;
-            animation: comboPop 0.6s ease-out forwards;
-        }
-        @keyframes comboPop {
-            0% { transform: scale(0.5); opacity: 0; }
-            20% { transform: scale(1.4); opacity: 1; }
-            100% { transform: scale(1.2) translateY(-40px); opacity: 0; }
-        }
 
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
         #startBtn { padding: 15px 50px; border-radius: 40px; border: none; background: #fff; color: #000; font-weight: bold; font-size: 24px; box-shadow: 0 0 20px rgba(255,255,255,0.4); cursor: pointer; }
@@ -95,7 +83,6 @@
     const boardEl = document.getElementById('board'), timerBar = document.getElementById('timer-bar');
     const overlay = document.getElementById('overlay'), startBtn = document.getElementById('startBtn');
 
-    // 音量を0.4にアップ！
     function playSound(f, type="sine", dur=0.2) {
         if(!audioCtx) return;
         let o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -125,16 +112,6 @@
         }
     }
 
-    function showComboEffect(count) {
-        if(count < 2) return;
-        const div = document.createElement('div');
-        div.className = 'combo-text'; div.innerText = count + " Combo!!";
-        div.style.top = "120px";
-        boardEl.appendChild(div);
-        setTimeout(() => div.remove(), 600);
-        playSound(400 + (count * 100), "square", 0.3);
-    }
-
     startBtn.onclick = (e) => {
         e.preventDefault();
         if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -148,8 +125,10 @@
         document.getElementById('score').innerText = score;
         boardEl.innerHTML = '';
         board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
-        for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) createGemDataAtStart(r, c);
-        draw();
+        for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+            board[r][c] = { color: Math.floor(Math.random()*5), el: null };
+        }
+        draw(); 
         if(timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             if(isGameOver) return;
@@ -159,51 +138,47 @@
         }, 100);
     }
 
-    function createGemDataAtStart(r, c) {
-        let colors = [0,1,2,3,4];
-        if (c >= 2 && board[r][c-1].color === board[r][c-2].color) colors = colors.filter(clr => clr !== board[r][c-1].color);
-        if (r >= 2 && board[r-1][c].color === board[r-2][c].color) colors = colors.filter(clr => clr !== board[r-1][c].color);
-        board[r][c] = { color: colors[Math.floor(Math.random()*colors.length)], el: null };
-    }
-
     function draw() {
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
             let d = board[r][c]; if(!d) continue;
             if(!d.el) {
                 d.el = document.createElement('div'); d.el.className = 'gem';
                 d.el.innerHTML = `<div class="gem-inner c${d.color}"></div>`;
-                // 新しい宝石は画面外（上）から降ってくるように初期値を設定
-                d.el.style.left = (c * SIZE) + 'px';
-                d.el.style.top = '-40px'; 
-                d.el.style.transform = 'scale(0)';
                 boardEl.appendChild(d.el);
-                // 描画を強制してアニメーションを効かせる
-                setTimeout(() => { 
-                    if(d.el) { d.el.style.top = (r * SIZE) + 'px'; d.el.style.transform = 'scale(1)'; }
-                }, 10);
-            } else {
+                // 新規宝石は、その列のさらに上から降ってくる演出
                 d.el.style.left = (c * SIZE) + 'px';
-                d.el.style.top = (r * SIZE) + 'px';
+                d.el.style.top = '-80px';
+                d.el.style.transform = 'scale(0)';
             }
+            // タイミングをずらして座標反映（既存の要素はそのまま移動する）
+            const targetTop = (r * SIZE) + 'px';
+            const targetLeft = (c * SIZE) + 'px';
+            setTimeout(() => {
+                if(d.el) {
+                    d.el.style.left = targetLeft;
+                    d.el.style.top = targetTop;
+                    d.el.style.transform = 'scale(1)';
+                }
+            }, 10);
         }
     }
 
     function swap(r1, c1, r2, c2) {
         isAnimating = true; comboCount = 0;
         let t1 = board[r1][c1], t2 = board[r2][c2];
-        if(!t1 || !t2) { isAnimating = false; return; }
         board[r1][c1] = t2; board[r2][c2] = t1;
         draw();
         setTimeout(() => {
             if(!checkAndClear()) {
                 board[r1][c1] = t1; board[r2][c2] = t2; draw();
-                setTimeout(() => isAnimating = false, 350);
+                setTimeout(() => isAnimating = false, 300);
             }
-        }, 350);
+        }, 300);
     }
 
     function checkAndClear() {
         let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
+        // 判定ロジック（3つ並び、四角形）
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS-2; c++)
             if(board[r][c] && board[r][c+1] && board[r][c+2] && board[r][c].color === board[r][c+1].color && board[r][c].color === board[r][c+2].color) m[r][c] = m[r][c+1] = m[r][c+2] = found = true;
         for(let c=0; c<COLS; c++) for(let r=0; r<ROWS-2; r++)
@@ -217,22 +192,19 @@
 
         if(found) {
             comboCount++;
-            if (comboCount === 1) playSound(400, "sine", 0.2); 
-            else showComboEffect(comboCount);
-
+            playSound(400 + (comboCount * 50));
             let clearedCount = 0;
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if(m[r][c] && board[r][c]) {
-                const b = board[r][c];
-                createParticles(c*SIZE, r*SIZE, 'c'+b.color);
-                b.el.style.transform = 'scale(0) rotate(180deg)';
-                const targetEl = b.el;
-                setTimeout(() => targetEl.remove(), 300);
+                createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color);
+                const el = board[r][c].el;
+                el.style.transform = 'scale(0)';
+                setTimeout(() => el.remove(), 300);
                 board[r][c] = null; clearedCount++;
             }
             score += clearedCount * 10 * comboCount;
             timeLeft = Math.min(100, timeLeft + (clearedCount * 0.7));
             document.getElementById('score').innerText = score;
-            setTimeout(applyGravity, 350);
+            setTimeout(applyGravity, 300);
         } else {
             isAnimating = false;
         }
@@ -242,20 +214,29 @@
     function applyGravity() {
         for(let c=0; c<COLS; c++) {
             let empty = 0;
+            // 下から上にスキャンして、空きがあれば上の宝石を移動させる
             for(let r=ROWS-1; r>=0; r--) {
-                if(!board[r][c]) empty++;
-                else if(empty > 0) { board[r+empty][c] = board[r][c]; board[r][c] = null; }
+                if(!board[r][c]) {
+                    empty++;
+                } else if(empty > 0) {
+                    // ここがキモ！配列の中身（el含む）をそのまま下の空きに移動
+                    board[r+empty][c] = board[r][c];
+                    board[r][c] = null;
+                }
             }
-            for(let i=0; i<empty; i++) board[i][c] = { color: Math.floor(Math.random()*5), el: null };
+            // 足りない分を上から補充
+            for(let i=0; i<empty; i++) {
+                board[i][c] = { color: Math.floor(Math.random()*5), el: null };
+            }
         }
-        draw();
+        draw(); // drawが移動（topの変化）をアニメーションさせてくれる
         setTimeout(checkAndClear, 450);
     }
 
     function gameOver() {
         isGameOver = true; clearInterval(timerInterval);
         let hi = localStorage.getItem('jewelHi') || 0;
-        if(score > hi) { hi = score; localStorage.setItem('jewelHi', hi); }
+        if(score > hi) { hi = score; localStorage.setItem('jewelHi', hi); hi = score; }
         document.getElementById('status-text').innerText = "TIME UP!";
         document.getElementById('final-score-display').innerText = score;
         document.getElementById('best-score-display').innerText = hi;
