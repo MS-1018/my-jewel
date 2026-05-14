@@ -1,4 +1,4 @@
-# Jewel Survival - Square Match Edition 💎
+# Jewel Survival 💎
 
 スマホで遊ぶことを前提に開発した、爽快パズルゲームです！
 
