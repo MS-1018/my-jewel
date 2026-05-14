@@ -81,6 +81,7 @@
     const boardEl = document.getElementById('board'), timerBar = document.getElementById('timer-bar');
     const overlay = document.getElementById('overlay'), startBtn = document.getElementById('startBtn');
 
+    // 汎用サウンド再生
     function playSound(f, type="sine", dur=0.2) {
         if(!audioCtx) return;
         let o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -91,44 +92,35 @@
         o.start(); o.stop(audioCtx.currentTime + dur);
     }
 
+    // パーティクル演出
     function createParticles(x, y, colorClass) {
-        const color = getComputedStyle(document.querySelector('.' + colorClass)).backgroundColor;
+        const gemColor = getComputedStyle(document.querySelector('.' + colorClass)).backgroundColor;
         for(let i=0; i<8; i++) {
             const p = document.createElement('div');
-            p.className = 'particle';
-            p.style.backgroundColor = color;
-            p.style.left = (x + 20) + 'px';
-            p.style.top = (y + 20) + 'px';
+            p.className = 'particle'; p.style.backgroundColor = gemColor;
+            p.style.left = (x + 20) + 'px'; p.style.top = (y + 20) + 'px';
             boardEl.appendChild(p);
-            
-            const angle = Math.random() * Math.PI * 2;
-            const velocity = 2 + Math.random() * 4;
-            const vx = Math.cos(angle) * velocity;
-            const vy = Math.sin(angle) * velocity;
-            
+            const angle = Math.random() * Math.PI * 2, velocity = 2 + Math.random() * 4;
+            const vx = Math.cos(angle) * velocity, vy = Math.sin(angle) * velocity;
             let opacity = 1;
             const animateP = () => {
-                const curX = parseFloat(p.style.left) + vx;
-                const curY = parseFloat(p.style.top) + vy;
-                opacity -= 0.05;
-                p.style.left = curX + 'px';
-                p.style.top = curY + 'px';
-                p.style.opacity = opacity;
-                if(opacity > 0) requestAnimationFrame(animateP);
-                else p.remove();
+                const curX = parseFloat(p.style.left) + vx, curY = parseFloat(p.style.top) + vy;
+                opacity -= 0.05; p.style.left = curX + 'px'; p.style.top = curY + 'px'; p.style.opacity = opacity;
+                if(opacity > 0) requestAnimationFrame(animateP); else p.remove();
             };
             requestAnimationFrame(animateP);
         }
     }
 
+    // コンボ演出
     function showComboEffect(count) {
         if(count < 2) return;
         const div = document.createElement('div');
-        div.className = 'combo-text';
-        div.innerText = count + " Combo!!";
+        div.className = 'combo-text'; div.innerText = count + " Combo!!";
         div.style.top = "120px";
         boardEl.appendChild(div);
         setTimeout(() => div.remove(), 600);
+        // コンボ用の音
         playSound(400 + (count * 100), "square", 0.3);
     }
 
@@ -140,7 +132,7 @@
     };
 
     function resetGame() {
-        isGameOver = false; score = 0; timeLeft = 100; comboCount = 0;
+        isGameOver = false; isAnimating = false; score = 0; timeLeft = 100; comboCount = 0;
         overlay.style.display = 'none';
         document.getElementById('score').innerText = score;
         boardEl.innerHTML = '';
@@ -150,7 +142,7 @@
         clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             if(isGameOver) return;
-            timeLeft -= 0.4;
+            timeLeft -= 0.45;
             if(timeLeft <= 0) gameOver();
             timerBar.style.width = timeLeft + '%';
         }, 100);
@@ -179,6 +171,7 @@
     function swap(r1, c1, r2, c2) {
         isAnimating = true; comboCount = 0;
         let t1 = board[r1][c1], t2 = board[r2][c2];
+        if(!t1 || !t2) { isAnimating = false; return; }
         board[r1][c1] = t2; board[r2][c2] = t1;
         draw();
         setTimeout(() => {
@@ -191,16 +184,11 @@
 
     function checkAndClear() {
         let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
-        
-        // 1. 横3つの判定
+        // 判定ロジック（横・縦・四角）
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS-2; c++)
             if(board[r][c] && board[r][c+1] && board[r][c+2] && board[r][c].color === board[r][c+1].color && board[r][c].color === board[r][c+2].color) m[r][c] = m[r][c+1] = m[r][c+2] = found = true;
-        
-        // 2. 縦3つの判定
         for(let c=0; c<COLS; c++) for(let r=0; r<ROWS-2; r++)
             if(board[r][c] && board[r+1][c] && board[r+2][c] && board[r][c].color === board[r+1][c].color && board[r][c].color === board[r+2][c].color) m[r][c] = m[r+1][c] = m[r+2][c] = found = true;
-        
-        // 3. 四角チェック
         for(let r=0; r<ROWS-1; r++) for(let c=0; c<COLS-1; c++) {
             if(board[r][c] && board[r][c+1] && board[r+1][c] && board[r+1][c+1]) {
                 const clr = board[r][c].color;
@@ -209,20 +197,12 @@
         }
 
         if(found) {
-            comboCount++; // 連鎖数をカウントアップ
-            
-            // --- サウンドの分岐処理 ---
-            if (comboCount === 1) {
-                // 最初の1連鎖目だけ、いつもの音を鳴らす
-                playSound(400, "sine", 0.2); 
-            } else {
-                // 2連鎖目以降はコンボ演出用の音だけ（通常の音は鳴らさない）
-                showComboEffect(comboCount); 
-            }
-            // ------------------------
+            comboCount++;
+            // サウンド分岐
+            if (comboCount === 1) playSound(400, "sine", 0.2); 
+            else showComboEffect(comboCount);
 
             let clearedCount = 0;
-            // ...（以下、パーティクルやスコア加算の処理が続く）
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if(m[r][c] && board[r][c]) {
                 const b = board[r][c];
                 createParticles(c*SIZE, r*SIZE, 'c'+b.color);
@@ -235,9 +215,7 @@
             document.getElementById('score').innerText = score;
             setTimeout(applyGravity, 300);
         } else {
-            isAnimating = false;
-            // 連鎖が止まったらコンボ数をリセット
-            comboCount = 0; 
+            isAnimating = false; // アニメーション終了！次の入力を許可
         }
         return found;
     }
@@ -266,18 +244,26 @@
         overlay.style.display = 'flex';
     }
 
-    // 入力
+    // --- 入力ガード強化版 ---
     const getPos = (e) => {
         const t = e.touches ? e.touches[0] : e;
-        const r = boardEl.getBoundingClientRect();
-        return { x: t.clientX, y: t.clientY, r: Math.floor((t.clientY-r.top)/(r.height/ROWS)), c: Math.floor((t.clientX-r.left)/(r.width/COLS)) };
+        const rect = boardEl.getBoundingClientRect();
+        return { 
+            x: t.clientX, y: t.clientY, 
+            r: Math.floor((t.clientY-rect.top)/(rect.height/ROWS)), 
+            c: Math.floor((t.clientX-rect.left)/(rect.width/COLS)) 
+        };
     };
+
     boardEl.addEventListener('touchstart', (e) => {
-        if(isAnimating || isGameOver) return; e.preventDefault();
-        const p = getPos(e); if(p.r>=0 && p.r<ROWS && p.c>=0 && p.c<COLS) touchStart = p;
+        if(isAnimating || isGameOver) return; // アニメーション中は無視
+        if(e.cancelable) e.preventDefault();
+        const p = getPos(e); 
+        if(p.r>=0 && p.r<ROWS && p.c>=0 && p.c<COLS) touchStart = p;
     }, {passive: false});
+
     boardEl.addEventListener('touchend', (e) => {
-        if(!touchStart || isAnimating) return;
+        if(!touchStart || isAnimating) { touchStart = null; return; }
         const t = e.changedTouches[0];
         const dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
         if(Math.abs(dx)>15 || Math.abs(dy)>15) {
