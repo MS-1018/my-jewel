@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Bomb Color Fixed</title>
+    <title>Jewel Survival - Chain Explosion</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         
@@ -210,7 +210,7 @@
         let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
         let bombCandidates = [];
 
-        // 横
+        // マッチングチェック（横）
         for(let r=0; r<ROWS; r++) {
             let matchLen = 1;
             for(let c=0; c<COLS; c++) {
@@ -227,7 +227,7 @@
                 }
             }
         }
-        // 縦
+        // マッチングチェック（縦）
         for(let c=0; c<COLS; c++) {
             let matchLen = 1;
             for(let r=0; r<ROWS; r++) {
@@ -249,22 +249,37 @@
             comboCount++;
             if (comboCount === 1) playSound(400); else showComboEffect(comboCount);
 
-            let clearedCount = 0;
-            let secondaryM = Array.from({length: ROWS}, () => Array(COLS).fill(false));
-
+            let totalClearMask = Array.from({length: ROWS}, () => Array(COLS).fill(false));
+            
+            // ★誘爆ロジック: 爆風に巻き込まれたボムを順次処理
+            let queue = [];
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
-                if(m[r][c] && board[r][c] && board[r][c].isBomb) {
-                    for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) {
-                        let nr=r+dr, nc=c+dc;
-                        if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS) secondaryM[nr][nc] = true;
-                    }
-                    playSound(200, "sawtooth", 0.4);
+                if(m[r][c]) {
+                    totalClearMask[r][c] = true;
+                    if(board[r][c] && board[r][c].isBomb) queue.push({r, c});
                 }
             }
 
+            let head = 0;
+            while(head < queue.length) {
+                const {r, c} = queue[head++];
+                for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) {
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS) {
+                        if(!totalClearMask[nr][nc]) {
+                            totalClearMask[nr][nc] = true;
+                            // 巻き込まれた先にボムがあればキューに追加してさらに爆発
+                            if(board[nr][nc] && board[nr][nc].isBomb) queue.push({r: nr, c: nc});
+                        }
+                    }
+                 head > 0 && playSound(200 + (head * 20), "sawtooth", 0.3);
+                }
+            }
+
+            let clearedCount = 0;
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
-                if((m[r][c] || secondaryM[r][c]) && board[r][c]) {
-                    createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, secondaryM[r][c]?20:10);
+                if(totalClearMask[r][c] && board[r][c]) {
+                    createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, 12);
                     const el = board[r][c].el;
                     el.style.transform = 'scale(0)';
                     setTimeout(() => el.remove(), 200);
@@ -272,7 +287,6 @@
                 }
             }
 
-            // ★修正ポイント: 元の色を使ってボムを作る
             bombCandidates.forEach(pos => {
                 if(!board[pos.r][pos.c]) {
                     board[pos.r][pos.c] = { color: pos.color, el: null, isBomb: true };
