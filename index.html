@@ -3,39 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - High Grade</title>
+    <title>Jewel Survival - Fixed Edition</title>
     <style>
-        * { user-select: none; -webkit-user-select: none; touch-action: none; }
+        * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         
-        /* 背景：深い紺のグラデーションで高級感を出す */
         body { 
             text-align: center; 
             background: radial-gradient(circle, #1a1a2e 0%, #16213e 100%); 
             color: white; 
             font-family: 'Arial Black', sans-serif; margin: 0; overflow: hidden; 
             position: fixed; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        #game-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; position: relative; }
+        #game-container { display: flex; flex-direction: column; align-items: center; width: 320px; }
         
         #score-box { font-size: 32px; color: #ffd700; text-shadow: 0 0 15px rgba(255,215,0,0.6); margin-bottom: 5px; }
         
-        #timer-container { width: 320px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; margin-bottom: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
+        #timer-container { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; margin-bottom: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
         #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
         
-        /* ボード：グラスモーフィズム（ガラスっぽさ） */
         #board { 
-            position: relative; width: 320px; height: 320px; 
+            position: relative; 
+            width: 320px; height: 320px; 
             background: rgba(255, 255, 255, 0.05); 
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
             border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden; /* はみ出し防止 */
         }
         
-        /* 宝石の共通デザイン：立体感と光沢 */
-        .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+        .gem { 
+            position: absolute; 
+            width: 40px; height: 40px; 
+            display: flex; align-items: center; justify-content: center; 
+            z-index: 2;
+            transition: left 0.2s, top 0.2s, transform 0.2s; /* アニメーションを滑らかに */
+        }
+        
         .gem-inner { 
             width: 36px; height: 36px; border-radius: 10px; 
             position: relative;
@@ -43,26 +49,19 @@
                 inset -4px -4px 6px rgba(0,0,0,0.4), 
                 inset 4px 4px 6px rgba(255,255,255,0.4),
                 0 4px 8px rgba(0,0,0,0.3);
-            transition: transform 0.1s;
         }
 
-        /* 宝石の左上のハイライト（ツヤ） */
         .gem-inner::after {
-            content: '';
-            position: absolute;
-            top: 15%; left: 15%;
-            width: 35%; height: 20%;
-            background: rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
-            transform: rotate(-30deg);
+            content: ''; position: absolute; top: 15%; left: 15%;
+            width: 35%; height: 20%; background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%; transform: rotate(-30deg);
         }
         
-        /* 各色のグラデーション */
-        .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff2a2a); } /* 赤 */
-        .c1 { background: radial-gradient(circle at 30% 30%, #ffdb01, #e17009); } /* 黄 */
-        .c2 { background: radial-gradient(circle at 30% 30%, #00d2ff, #3a7bd5); } /* 青 */
-        .c3 { background: radial-gradient(circle at 30% 30%, #92fe9d, #00c9ff); } /* 緑 */
-        .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); } /* ピンク */
+        .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff2a2a); }
+        .c1 { background: radial-gradient(circle at 30% 30%, #ffdb01, #e17009); }
+        .c2 { background: radial-gradient(circle at 30% 30%, #00d2ff, #3a7bd5); }
+        .c3 { background: radial-gradient(circle at 30% 30%, #92fe9d, #00c9ff); }
+        .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); }
         
         .particle { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 10; }
 
@@ -183,7 +182,9 @@
                 d.el.innerHTML = `<div class="gem-inner c${d.color}"></div>`;
                 boardEl.appendChild(d.el);
             }
-            d.el.style.left = c*SIZE+'px'; d.el.style.top = r*SIZE+'px';
+            // 位置をピクセルで明示的に固定
+            d.el.style.left = (c * SIZE) + 'px';
+            d.el.style.top = (r * SIZE) + 'px';
             d.el.style.transform = 'scale(1)';
         }
     }
@@ -225,7 +226,8 @@
                 const b = board[r][c];
                 createParticles(c*SIZE, r*SIZE, 'c'+b.color);
                 b.el.style.transform = 'scale(0)';
-                setTimeout(() => b.el.remove(), 200);
+                const targetEl = b.el;
+                setTimeout(() => targetEl.remove(), 250);
                 board[r][c] = null; clearedCount++;
             }
             score += clearedCount * 10 * comboCount;
@@ -263,12 +265,14 @@
     }
 
     const getPos = (e) => {
-        const t = e.touches ? e.touches[0] : e;
+        const t = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
         const rect = boardEl.getBoundingClientRect();
+        const x = t.clientX - rect.left;
+        const y = t.clientY - rect.top;
         return { 
             x: t.clientX, y: t.clientY, 
-            r: Math.floor((t.clientY-rect.top)/(rect.height/ROWS)), 
-            c: Math.floor((t.clientX-rect.left)/(rect.width/COLS)) 
+            r: Math.floor(y / SIZE), 
+            c: Math.floor(x / SIZE) 
         };
     };
 
