@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Physical Logic</title>
+    <title>Jewel Survival - Constant Speed</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         
@@ -32,10 +32,8 @@
         .gem { 
             position: absolute; width: 40px; height: 40px; 
             display: flex; align-items: center; justify-content: center; z-index: 2;
-            /* 移動アニメーションを滑らかに。topは重力感、leftは入れ替え感。 */
-            transition: left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                        top 0.4s cubic-bezier(0.3, 0, 0.2, 1), 
-                        transform 0.2s ease-out;
+            /* ★ココを修正: linearにして速度を一定にし、時間を0.2sに短縮 */
+            transition: left 0.2s linear, top 0.2s linear, transform 0.2s linear;
         }
         
         .gem-inner { 
@@ -145,12 +143,10 @@
                 d.el = document.createElement('div'); d.el.className = 'gem';
                 d.el.innerHTML = `<div class="gem-inner c${d.color}"></div>`;
                 boardEl.appendChild(d.el);
-                // 新規宝石は、その列のさらに上から降ってくる演出
                 d.el.style.left = (c * SIZE) + 'px';
-                d.el.style.top = '-80px';
+                d.el.style.top = '-40px';
                 d.el.style.transform = 'scale(0)';
             }
-            // タイミングをずらして座標反映（既存の要素はそのまま移動する）
             const targetTop = (r * SIZE) + 'px';
             const targetLeft = (c * SIZE) + 'px';
             setTimeout(() => {
@@ -168,17 +164,17 @@
         let t1 = board[r1][c1], t2 = board[r2][c2];
         board[r1][c1] = t2; board[r2][c2] = t1;
         draw();
+        // ★ココを短縮: 0.2sのアニメーションに合わせて待ち時間を調整
         setTimeout(() => {
             if(!checkAndClear()) {
                 board[r1][c1] = t1; board[r2][c2] = t2; draw();
-                setTimeout(() => isAnimating = false, 300);
+                setTimeout(() => isAnimating = false, 200);
             }
-        }, 300);
+        }, 200);
     }
 
     function checkAndClear() {
         let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
-        // 判定ロジック（3つ並び、四角形）
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS-2; c++)
             if(board[r][c] && board[r][c+1] && board[r][c+2] && board[r][c].color === board[r][c+1].color && board[r][c].color === board[r][c+2].color) m[r][c] = m[r][c+1] = m[r][c+2] = found = true;
         for(let c=0; c<COLS; c++) for(let r=0; r<ROWS-2; r++)
@@ -198,13 +194,13 @@
                 createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color);
                 const el = board[r][c].el;
                 el.style.transform = 'scale(0)';
-                setTimeout(() => el.remove(), 300);
+                setTimeout(() => el.remove(), 200);
                 board[r][c] = null; clearedCount++;
             }
             score += clearedCount * 10 * comboCount;
             timeLeft = Math.min(100, timeLeft + (clearedCount * 0.7));
             document.getElementById('score').innerText = score;
-            setTimeout(applyGravity, 300);
+            setTimeout(applyGravity, 200);
         } else {
             isAnimating = false;
         }
@@ -214,29 +210,25 @@
     function applyGravity() {
         for(let c=0; c<COLS; c++) {
             let empty = 0;
-            // 下から上にスキャンして、空きがあれば上の宝石を移動させる
             for(let r=ROWS-1; r>=0; r--) {
-                if(!board[r][c]) {
-                    empty++;
-                } else if(empty > 0) {
-                    // ここがキモ！配列の中身（el含む）をそのまま下の空きに移動
+                if(!board[r][c]) { empty++; } 
+                else if(empty > 0) {
                     board[r+empty][c] = board[r][c];
                     board[r][c] = null;
                 }
             }
-            // 足りない分を上から補充
             for(let i=0; i<empty; i++) {
                 board[i][c] = { color: Math.floor(Math.random()*5), el: null };
             }
         }
-        draw(); // drawが移動（topの変化）をアニメーションさせてくれる
-        setTimeout(checkAndClear, 450);
+        draw();
+        setTimeout(checkAndClear, 250);
     }
 
     function gameOver() {
         isGameOver = true; clearInterval(timerInterval);
         let hi = localStorage.getItem('jewelHi') || 0;
-        if(score > hi) { hi = score; localStorage.setItem('jewelHi', hi); hi = score; }
+        if(score > hi) { hi = score; localStorage.setItem('jewelHi', hi); }
         document.getElementById('status-text').innerText = "TIME UP!";
         document.getElementById('final-score-display').innerText = score;
         document.getElementById('best-score-display').innerText = hi;
