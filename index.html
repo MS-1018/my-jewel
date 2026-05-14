@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jewel Survival - Extreme</title>
+    <style>
+        * { user-select: none; -webkit-user-select: none; touch-action: none; }
+        body { 
+            text-align: center; background: #0a0a0a; color: white; 
+            font-family: 'Arial Black', sans-serif; margin: 0; overflow: hidden; 
+            position: fixed; width: 100%; height: 100%;
+        }
+        #game-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; position: relative; }
+        
+        /* スコアとタイマー */
+        #score-box { font-size: 32px; color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.5); margin-bottom: 5px; }
+        #timer-container { width: 320px; height: 10px; background: #222; border-radius: 5px; margin-bottom: 15px; overflow: hidden; border: 1px solid #444; }
+        #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
+        
+        /* ボード */
+        #board { 
+            position: relative; width: 320px; height: 320px; 
+            background: rgba(34, 34, 34, 0.8); border: 4px solid #333; border-radius: 8px; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        
+        /* 宝石 */
+        .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+        .gem-inner { 
+            width: 34px; height: 34px; border-radius: 8px; 
+            box-shadow: inset -3px -3px 5px rgba(0,0,0,0.4), inset 3px 3px 5px rgba(255,255,255,0.3);
+            transition: transform 0.1s;
+        }
+        .c0 { background: #ff4b2b; } .c1 { background: #ffb400; } .c2 { background: #00d2ff; } .c3 { background: #45a247; } .c4 { background: #8e44ad; }
+        
+        /* パーティクル */
+        .particle {
+            position: absolute; width: 6px; height: 6px; border-radius: 50%;
+            pointer-events: none; z-index: 10;
+        }
+
+        /* コンボ文字 */
+        .combo-text {
+            position: absolute; width: 100%; text-align: center; font-size: 40px;
+            color: #fff; text-shadow: 0 0 15px #ff00de, 0 0 5px #000;
+            font-style: italic; pointer-events: none; z-index: 20;
+            animation: comboPop 0.6s ease-out forwards;
+        }
+        @keyframes comboPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            20% { transform: scale(1.4); opacity: 1; }
+            100% { transform: scale(1.2) translateY(-40px); opacity: 0; }
+        }
+
+        /* オーバーレイ */
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        #startBtn { padding: 15px 50px; border-radius: 40px; border: none; background: #fff; color: #000; font-weight: bold; font-size: 24px; box-shadow: 0 0 20px rgba(255,255,255,0.4); }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score-box">SCORE: <span id="score">0</span></div>
+        <div id="timer-container"><div id="timer-bar"></div></div>
+        <div id="board"></div>
+        <div id="overlay">
+            <h1 id="status-text" style="color:#00d2ff; font-size: 40px;">Jewel Survival</h1>
+            <div id="result-content" style="display:none; margin-bottom: 20px;">
+                <p>FINAL SCORE: <span id="final-score-display" style="font-size: 48px;">0</span></p>
+                <p style="color:#ffd700;">🏆 BEST: <span id="best-score-display">0</span></p>
+            </div>
+            <button id="startBtn">START</button>
+        </div>
+    </div>
+
+<script>
+    const ROWS = 8, COLS = 8, SIZE = 40;
+    let board = [], score = 0, isAnimating = false, isGameOver = true, timeLeft = 100;
+    let touchStart = null, timerInterval = null, audioCtx, comboCount = 0;
+    
+    const boardEl = document.getElementById('board'), timerBar = document.getElementById('timer-bar');
+    const overlay = document.getElementById('overlay'), startBtn = document.getElementById('startBtn');
+
+    function playSound(f, type="sine", dur=0.2) {
+        if(!audioCtx) return;
+        let o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = type; o.frequency.value = f;
+        g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(); o.stop(audioCtx.currentTime + dur);
+    }
+
+    function createParticles(x, y, colorClass) {
+        const color = getComputedStyle(document.querySelector('.' + colorClass)).backgroundColor;
+        for(let i=0; i<8; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.backgroundColor = color;
+            p.style.left = (x + 20) + 'px';
+            p.style.top = (y + 20) + 'px';
+            boardEl.appendChild(p);
+            
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = 2 + Math.random() * 4;
+            const vx = Math.cos(angle) * velocity;
+            const vy = Math.sin(angle) * velocity;
+            
+            let opacity = 1;
+            const animateP = () => {
+                const curX = parseFloat(p.style.left) + vx;
+                const curY = parseFloat(p.style.top) + vy;
+                opacity -= 0.05;
+                p.style.left = curX + 'px';
+                p.style.top = curY + 'px';
+                p.style.opacity = opacity;
+                if(opacity > 0) requestAnimationFrame(animateP);
+                else p.remove();
+            };
+            requestAnimationFrame(animateP);
+        }
+    }
+
+    function showComboEffect(count) {
+        if(count < 2) return;
+        const div = document.createElement('div');
+        div.className = 'combo-text';
+        div.innerText = count + " Combo!!";
+        div.style.top = "120px";
+        boardEl.appendChild(div);
+        setTimeout(() => div.remove(), 600);
+        playSound(400 + (count * 100), "square", 0.3);
+    }
+
+    startBtn.onclick = (e) => {
+        e.preventDefault();
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioCtx.resume();
+        resetGame();
+    };
+
+    function resetGame() {
+        isGameOver = false; score = 0; timeLeft = 100; comboCount = 0;
+        overlay.style.display = 'none';
+        document.getElementById('score').innerText = score;
+        boardEl.innerHTML = '';
+        board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+        for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) createGemDataAtStart(r, c);
+        draw();
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if(isGameOver) return;
+            timeLeft -= 0.4;
+            if(timeLeft <= 0) gameOver();
+            timerBar.style.width = timeLeft + '%';
+        }, 100);
+    }
+
+    function createGemDataAtStart(r, c) {
+        let colors = [0,1,2,3,4];
+        if (c >= 2 && board[r][c-1].color === board[r][c-2].color) colors = colors.filter(clr => clr !== board[r][c-1].color);
+        if (r >= 2 && board[r-1][c].color === board[r-2][c].color) colors = colors.filter(clr => clr !== board[r-1][c].color);
+        board[r][c] = { color: colors[Math.floor(Math.random()*colors.length)], el: null };
+    }
+
+    function draw() {
+        for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+            let d = board[r][c]; if(!d) continue;
+            if(!d.el) {
+                d.el = document.createElement('div'); d.el.className = 'gem';
+                d.el.innerHTML = `<div class="gem-inner c${d.color}"></div>`;
+                boardEl.appendChild(d.el);
+            }
+            d.el.style.left = c*SIZE+'px'; d.el.style.top = r*SIZE+'px';
+            d.el.style.transform = 'scale(1)';
+        }
+    }
+
+    function swap(r1, c1, r2, c2) {
+        isAnimating = true; comboCount = 0;
+        let t1 = board[r1][c1], t2 = board[r2][c2];
+        board[r1][c1] = t2; board[r2][c2] = t1;
+        draw();
+        setTimeout(() => {
+            if(!checkAndClear()) {
+                board[r1][c1] = t1; board[r2][c2] = t2; draw();
+                setTimeout(() => isAnimating = false, 250);
+            }
+        }, 250);
+    }
+
+    function checkAndClear() {
+        let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
+        // 横/縦チェック
+        for(let r=0; r<ROWS; r++) for(let c=0; c<COLS-2; c++)
+            if(board[r][c] && board[r][c+1] && board[r][c+2] && board[r][c].color === board[r][c+1].color && board[r][c].color === board[r][c+2].color) m[r][c] = m[r][c+1] = m[r][c+2] = found = true;
+        for(let c=0; c<COLS; c++) for(let r=0; r<ROWS-2; r++)
+            if(board[r][c] && board[r+1][c] && board[r+2][c] && board[r][c].color === board[r+1][c].color && board[r][c].color === board[r+2][c].color) m[r][c] = m[r+1][c] = m[r+2][c] = found = true;
+        // 四角チェック
+        for(let r=0; r<ROWS-1; r++) for(let c=0; c<COLS-1; c++) {
+            if(board[r][c] && board[r][c+1] && board[r+1][c] && board[r+1][c+1]) {
+                const clr = board[r][c].color;
+                if(board[r][c+1].color===clr && board[r+1][c].color===clr && board[r+1][c+1].color===clr) m[r][c]=m[r][c+1]=m[r+1][c]=m[r+1][c+1]=found=true;
+            }
+        }
+
+        if(found) {
+            comboCount++;
+            showComboEffect(comboCount);
+            let clearedCount = 0;
+            for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if(m[r][c] && board[r][c]) {
+                const b = board[r][c];
+                createParticles(c*SIZE, r*SIZE, 'c'+b.color);
+                b.el.style.transform = 'scale(0)';
+                setTimeout(() => b.el.remove(), 200);
+                board[r][c] = null; clearedCount++;
+            }
+            score += clearedCount * 10 * comboCount; // コンボ倍率
+            timeLeft = Math.min(100, timeLeft + (clearedCount * 0.7));
+            document.getElementById('score').innerText = score;
+            setTimeout(applyGravity, 300);
+        } else {
+            isAnimating = false;
+        }
+        return found;
+    }
+
+    function applyGravity() {
+        for(let c=0; c<COLS; c++) {
+            let empty = 0;
+            for(let r=ROWS-1; r>=0; r--) {
+                if(!board[r][c]) empty++;
+                else if(empty > 0) { board[r+empty][c] = board[r][c]; board[r][c] = null; }
+            }
+            for(let i=0; i<empty; i++) board[i][c] = { color: Math.floor(Math.random()*5), el: null };
+        }
+        draw();
+        setTimeout(checkAndClear, 300);
+    }
+
+    function gameOver() {
+        isGameOver = true; clearInterval(timerInterval);
+        let hi = localStorage.getItem('jewelHi') || 0;
+        if(score > hi) { hi = score; localStorage.setItem('jewelHi', hi); }
+        document.getElementById('status-text').innerText = "TIME UP!";
+        document.getElementById('final-score-display').innerText = score;
+        document.getElementById('best-score-display').innerText = hi;
+        document.getElementById('result-content').style.display = 'block';
+        overlay.style.display = 'flex';
+    }
+
+    // 入力
+    const getPos = (e) => {
+        const t = e.touches ? e.touches[0] : e;
+        const r = boardEl.getBoundingClientRect();
+        return { x: t.clientX, y: t.clientY, r: Math.floor((t.clientY-r.top)/(r.height/ROWS)), c: Math.floor((t.clientX-r.left)/(r.width/COLS)) };
+    };
+    boardEl.addEventListener('touchstart', (e) => {
+        if(isAnimating || isGameOver) return; e.preventDefault();
+        const p = getPos(e); if(p.r>=0 && p.r<ROWS && p.c>=0 && p.c<COLS) touchStart = p;
+    }, {passive: false});
+    boardEl.addEventListener('touchend', (e) => {
+        if(!touchStart || isAnimating) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+        if(Math.abs(dx)>15 || Math.abs(dy)>15) {
+            let tr=touchStart.r, tc=touchStart.c;
+            if(Math.abs(dx)>Math.abs(dy)) tc += dx>0?1:-1; else tr += dy>0?1:-1;
+            if(tr>=0 && tr<ROWS && tc>=0 && tc<COLS) swap(touchStart.r, touchStart.c, tr, tc);
+        }
+        touchStart = null;
+    });
+</script>
+</body>
+</html>
