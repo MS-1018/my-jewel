@@ -3,37 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Extreme</title>
+    <title>Jewel Survival - High Grade</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; }
         
-       body { 
+        /* 背景：深い紺のグラデーションで高級感を出す */
+        body { 
             text-align: center; 
-            /* 背景をただの黒から、深い紺のグラデーションに */
             background: radial-gradient(circle, #1a1a2e 0%, #16213e 100%); 
             color: white; 
             font-family: 'Arial Black', sans-serif; margin: 0; overflow: hidden; 
             position: fixed; width: 100%; height: 100%;
         }
-        
+
         #game-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; position: relative; }
         
-        /* スコアとタイマー */
-        #score-box { font-size: 32px; color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.5); margin-bottom: 5px; }
-        #timer-container { width: 320px; height: 10px; background: #222; border-radius: 5px; margin-bottom: 15px; overflow: hidden; border: 1px solid #444; }
+        #score-box { font-size: 32px; color: #ffd700; text-shadow: 0 0 15px rgba(255,215,0,0.6); margin-bottom: 5px; }
+        
+        #timer-container { width: 320px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; margin-bottom: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
         #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
         
-       #board { 
+        /* ボード：グラスモーフィズム（ガラスっぽさ） */
+        #board { 
             position: relative; width: 320px; height: 320px; 
-            /* ボードを半透明のガラスっぽく（グラスモーフィズム） */
             background: rgba(255, 255, 255, 0.05); 
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px; 
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         
-        /* 宝石の共通デザイン：立体感と光沢を出す */
+        /* 宝石の共通デザイン：立体感と光沢 */
+        .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; }
         .gem-inner { 
             width: 36px; height: 36px; border-radius: 10px; 
             position: relative;
@@ -44,32 +46,28 @@
             transition: transform 0.1s;
         }
 
-        /* 宝石の上に「光の筋」を入れる擬似要素 */
+        /* 宝石の左上のハイライト（ツヤ） */
         .gem-inner::after {
             content: '';
             position: absolute;
             top: 15%; left: 15%;
-            width: 40%; height: 25%;
+            width: 35%; height: 20%;
             background: rgba(255, 255, 255, 0.4);
             border-radius: 50%;
             transform: rotate(-30deg);
         }
+        
+        /* 各色のグラデーション */
+        .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff2a2a); } /* 赤 */
+        .c1 { background: radial-gradient(circle at 30% 30%, #ffdb01, #e17009); } /* 黄 */
+        .c2 { background: radial-gradient(circle at 30% 30%, #00d2ff, #3a7bd5); } /* 青 */
+        .c3 { background: radial-gradient(circle at 30% 30%, #92fe9d, #00c9ff); } /* 緑 */
+        .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); } /* ピンク */
+        
+        .particle { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 10; }
 
-        /* 各色のグラデーション（単色より高級感が出るぜ！） */
-        .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ffc371); } /* 赤系 */
-        .c1 { background: radial-gradient(circle at 30% 30%, #ffdb01, #e17009); } /* 黄系 */
-        .c2 { background: radial-gradient(circle at 30% 30%, #00d2ff, #3a7bd5); } /* 青系 */
-        .c3 { background: radial-gradient(circle at 30% 30%, #92fe9d, #00c9ff); } /* 緑系 */
-        .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); } /* ピンク系 */
-        /* パーティクル */
-        .particle {
-            position: absolute; width: 6px; height: 6px; border-radius: 50%;
-            pointer-events: none; z-index: 10;
-        }
-
-        /* コンボ文字 */
         .combo-text {
-            position: absolute; width: 100%; text-align: center; font-size: 40px;
+            position: absolute; width: 100%; text-align: center; font-size: 42px;
             color: #fff; text-shadow: 0 0 15px #ff00de, 0 0 5px #000;
             font-style: italic; pointer-events: none; z-index: 20;
             animation: comboPop 0.6s ease-out forwards;
@@ -80,9 +78,8 @@
             100% { transform: scale(1.2) translateY(-40px); opacity: 0; }
         }
 
-        /* オーバーレイ */
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-        #startBtn { padding: 15px 50px; border-radius: 40px; border: none; background: #fff; color: #000; font-weight: bold; font-size: 24px; box-shadow: 0 0 20px rgba(255,255,255,0.4); }
+        #startBtn { padding: 15px 50px; border-radius: 40px; border: none; background: #fff; color: #000; font-weight: bold; font-size: 24px; box-shadow: 0 0 20px rgba(255,255,255,0.4); cursor: pointer; }
     </style>
 </head>
 <body>
@@ -108,7 +105,6 @@
     const boardEl = document.getElementById('board'), timerBar = document.getElementById('timer-bar');
     const overlay = document.getElementById('overlay'), startBtn = document.getElementById('startBtn');
 
-    // 汎用サウンド再生
     function playSound(f, type="sine", dur=0.2) {
         if(!audioCtx) return;
         let o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -119,7 +115,6 @@
         o.start(); o.stop(audioCtx.currentTime + dur);
     }
 
-    // パーティクル演出
     function createParticles(x, y, colorClass) {
         const gemColor = getComputedStyle(document.querySelector('.' + colorClass)).backgroundColor;
         for(let i=0; i<8; i++) {
@@ -139,7 +134,6 @@
         }
     }
 
-    // コンボ演出
     function showComboEffect(count) {
         if(count < 2) return;
         const div = document.createElement('div');
@@ -147,7 +141,6 @@
         div.style.top = "120px";
         boardEl.appendChild(div);
         setTimeout(() => div.remove(), 600);
-        // コンボ用の音
         playSound(400 + (count * 100), "square", 0.3);
     }
 
@@ -166,7 +159,7 @@
         board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) createGemDataAtStart(r, c);
         draw();
-        clearInterval(timerInterval);
+        if(timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             if(isGameOver) return;
             timeLeft -= 0.45;
@@ -211,7 +204,6 @@
 
     function checkAndClear() {
         let m = Array.from({length: ROWS}, () => Array(COLS).fill(false)), found = false;
-        // 判定ロジック（横・縦・四角）
         for(let r=0; r<ROWS; r++) for(let c=0; c<COLS-2; c++)
             if(board[r][c] && board[r][c+1] && board[r][c+2] && board[r][c].color === board[r][c+1].color && board[r][c].color === board[r][c+2].color) m[r][c] = m[r][c+1] = m[r][c+2] = found = true;
         for(let c=0; c<COLS; c++) for(let r=0; r<ROWS-2; r++)
@@ -225,7 +217,6 @@
 
         if(found) {
             comboCount++;
-            // サウンド分岐
             if (comboCount === 1) playSound(400, "sine", 0.2); 
             else showComboEffect(comboCount);
 
@@ -242,7 +233,7 @@
             document.getElementById('score').innerText = score;
             setTimeout(applyGravity, 300);
         } else {
-            isAnimating = false; // アニメーション終了！次の入力を許可
+            isAnimating = false;
         }
         return found;
     }
@@ -271,7 +262,6 @@
         overlay.style.display = 'flex';
     }
 
-    // --- 入力ガード強化版 ---
     const getPos = (e) => {
         const t = e.touches ? e.touches[0] : e;
         const rect = boardEl.getBoundingClientRect();
@@ -283,7 +273,7 @@
     };
 
     boardEl.addEventListener('touchstart', (e) => {
-        if(isAnimating || isGameOver) return; // アニメーション中は無視
+        if(isAnimating || isGameOver) return;
         if(e.cancelable) e.preventDefault();
         const p = getPos(e); 
         if(p.r>=0 && p.r<ROWS && p.c>=0 && p.c<COLS) touchStart = p;
