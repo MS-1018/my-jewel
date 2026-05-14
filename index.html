@@ -211,15 +211,18 @@
         if(found) {
             comboCount++; // 連鎖数をカウントアップ
             
-            // --- ここで音を鳴らす！連鎖するほど音が高くなる設定だぜ ---
-            const baseFreq = 400; // 基本の音の高さ
-            playSound(baseFreq + (comboCount * 80), "sine", 0.2); 
-            
-            if(comboCount >= 2) {
-                showComboEffect(comboCount);
+            // --- サウンドの分岐処理 ---
+            if (comboCount === 1) {
+                // 最初の1連鎖目だけ、いつもの音を鳴らす
+                playSound(400, "sine", 0.2); 
+            } else {
+                // 2連鎖目以降はコンボ演出用の音だけ（通常の音は鳴らさない）
+                showComboEffect(comboCount); 
             }
+            // ------------------------
 
             let clearedCount = 0;
+            // ...（以下、パーティクルやスコア加算の処理が続く）
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if(m[r][c] && board[r][c]) {
                 const b = board[r][c];
                 createParticles(c*SIZE, r*SIZE, 'c'+b.color);
