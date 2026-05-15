@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Bomb Blast Final Fix</title>
+    <title>Jewel Survival - Dynamic Bomb</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; margin: 0; padding: 0; }
         body { 
@@ -25,16 +25,6 @@
         .is-bomb { z-index: 5; }
         .is-bomb .gem-inner { border: 3px solid #fff; box-shadow: 0 0 15px #fff, 0 0 20px #ffd700; animation: bombRotate 2s linear infinite; }
         @keyframes bombRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
-        /* 飛び散る演出用のCSS */
-        .gem.is-exploded {
-            transition: all 0.3s cubic-bezier(0.1, 0.5, 0.3, 1) !important;
-            left: var(--explode-x) !important;
-            top: var(--explode-y) !important;
-            transform: scale(0.2) rotate(360deg) !important;
-            opacity: 0 !important;
-            z-index: 999 !important;
-        }
         
         .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff2a2a); }
         .c1 { background: radial-gradient(circle at 30% 30%, #ffdb01, #e17009); }
@@ -197,7 +187,7 @@
         for(let r=0; r<ROWS-1; r++) {
             for(let c=0; c<COLS-1; c++) {
                 const b1 = board[r][c], b2 = board[r+1][c], b3 = board[r][c+1], b4 = board[r+1][c+1];
-                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) { 
+                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) { 
                     m[r][c] = m[r+1][c] = m[r][c+1] = m[r+1][c+1] = true; 
                     bombCandidates.push({r, c, color: b1.color}); 
                     found = true; 
@@ -231,8 +221,6 @@
                 for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) { let nr=r+dr, nc=c+dc; if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && !totalClearMask[nr][nc]) { totalClearMask[nr][nc] = true; if(board[nr][nc] && board[nr][nc].isBomb) queue.push({r: nr, c: nc}); } }
             }
             
-            const bombSources = queue.map(q => ({r: q.r, c: q.c}));
-
             let clearedCount = 0;
             for(let r=0; r<ROWS; r++) {
                 for(let c=0; c<COLS; c++) {
@@ -240,26 +228,14 @@
                         const el = board[r][c].el;
                         const tColorClass = 'c'+board[r][c].color;
                         
-                        const isSelfBomb = board[r][c].isBomb;
-                        if(isSelfBomb) {
-                            const target = finalBombPosList[0] || {r, c}; 
-                            el.style.transition = "all 0.3s cubic-bezier(0.5, 0, 0.5, 1)";
-                            el.style.left = (target.c * SIZE) + "px"; el.style.top = (target.r * SIZE) + "px";
-                            el.style.transform = "scale(0.2) rotate(360deg)"; el.style.opacity = "0";
-                            createParticles(c*SIZE, r*SIZE, tColorClass, 8, 0.5);
-                        } else {
-                            const source = bombSources.length > 0 ? bombSources[0] : {r, c};
-                            const angle = Math.atan2(r - source.r, c - source.c);
-                            const explodeDist = SIZE * (1.5 + Math.random());
-
-                            const ex = (c * SIZE + Math.cos(angle) * explodeDist) + "px";
-                            const ey = (r * SIZE + Math.sin(angle) * explodeDist) + "px";
-                            el.style.setProperty('--explode-x', ex);
-                            el.style.setProperty('--explode-y', ey);
-                            el.classList.add('is-exploded');
-                            
-                            createParticles(c*SIZE, r*SIZE, tColorClass, 24, 1.5); 
-                        }
+                        // 全ての消えるブロックが爆発の中心（または自身の位置）にシュインと吸い込まれる設定に戻したぜ
+                        const target = finalBombPosList[0] || {r, c}; 
+                        el.style.transition = "all 0.3s cubic-bezier(0.5, 0, 0.5, 1)";
+                        el.style.left = (target.c * SIZE) + "px"; el.style.top = (target.r * SIZE) + "px";
+                        el.style.transform = "scale(0.2) rotate(360deg)"; el.style.opacity = "0";
+                        
+                        // 飛び散る火花（パーティクル）の気持ちよさはしっかりキープ！
+                        createParticles(c*SIZE, r*SIZE, tColorClass, 24, 1.5); 
 
                         setTimeout(() => el.remove(), 300);
                         board[r][c] = null; clearedCount++;
