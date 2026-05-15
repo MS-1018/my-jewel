@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Extreme Burst</title>
+    <title>Jewel Survival - High Speed</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         body { 
@@ -17,8 +17,8 @@
         #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
         #board { position: relative; width: 320px; height: 320px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; }
         
-        /* 宝石のツヤ復活スタイル */
-        .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: left 0.2s linear, top 0.2s linear, transform 0.2s linear; }
+        /* 速度UP: transitionを0.2sから0.15sへ */
+        .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: left 0.15s linear, top 0.15s linear, transform 0.15s linear; }
         .gem-inner { 
             width: 36px; height: 36px; border-radius: 10px; position: relative; 
             box-shadow: inset -4px -4px 6px rgba(0,0,0,0.4), inset 4px 4px 6px rgba(255,255,255,0.5), 0 4px 8px rgba(0,0,0,0.3);
@@ -62,7 +62,6 @@
     </div>
 
 <script>
-    // ズーム完全防止
     document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
     document.addEventListener('touchend', (e) => {
@@ -171,7 +170,8 @@
         lastMoveTarget = {r: r2, c: c2};
         let t1 = board[r1][c1], t2 = board[r2][c2];
         board[r1][c1] = t2; board[r2][c2] = t1; draw();
-        setTimeout(() => { if(!checkAndClear()) { board[r1][c1] = t1; board[r2][c2] = t2; lastMoveTarget = null; draw(); setTimeout(() => isAnimating = false, 200); } }, 200);
+        // 速度UP: 200ms -> 150ms
+        setTimeout(() => { if(!checkAndClear()) { board[r1][c1] = t1; board[r2][c2] = t2; lastMoveTarget = null; draw(); setTimeout(() => isAnimating = false, 150); } }, 150);
     }
 
     function checkAndClear() {
@@ -219,9 +219,9 @@
                 const {r, c} = queue[head++];
                 if(head > 1) { 
                     comboCount++;
-                    setTimeout(() => { showComboEffect(comboCount, r, c); }, head * 100);
+                    setTimeout(() => { showComboEffect(comboCount, r, c); }, head * 80); // コンボ演出も少し早く
                 }
-                playEffect('bomb', head * 0.1);
+                playEffect('bomb', head * 0.08);
                 for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) { let nr=r+dr, nc=c+dc; if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && !totalClearMask[nr][nc]) { totalClearMask[nr][nc] = true; if(board[nr][nc] && board[nr][nc].isBomb) queue.push({r: nr, c: nc}); } }
             }
             
@@ -231,10 +231,10 @@
                     if(totalClearMask[r][c] && board[r][c]) {
                         const el = board[r][c].el;
                         const target = finalBombPosList[0] || {r, c}; 
-                        el.style.transition = "all 0.3s cubic-bezier(0.5, 0, 0.5, 1)";
+                        el.style.transition = "all 0.2s cubic-bezier(0.5, 0, 0.5, 1)"; // 消える速度UP
                         el.style.left = (target.c * SIZE) + "px"; el.style.top = (target.r * SIZE) + "px";
                         el.style.transform = "scale(0.2) rotate(180deg)"; el.style.opacity = "0";
-                        setTimeout(() => el.remove(), 300);
+                        setTimeout(() => el.remove(), 200);
                         createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, 8);
                         board[r][c] = null; clearedCount++;
                     }
@@ -244,9 +244,9 @@
             finalBombPosList.forEach(pos => { if(!board[pos.r][pos.c]) board[pos.r][pos.c] = { color: pos.color, el: null, isBomb: true }; else board[pos.r][pos.c].isBomb = true; });
             lastMoveTarget = null;
             score += clearedCount * 10 * comboCount; 
-            // ★回復量を120%に調整 (0.5 → 0.6)
-            timeLeft = Math.min(100, timeLeft + (clearedCount * 0.6));
-            document.getElementById('score').innerText = score; setTimeout(applyGravity, 400);
+            // ★回復量をさらに強化 (0.6 → 0.8)
+            timeLeft = Math.min(100, timeLeft + (clearedCount * 0.8));
+            document.getElementById('score').innerText = score; setTimeout(applyGravity, 250); // 判定待ち短縮
         } else { isAnimating = false; lastMoveTarget = null; }
         return found;
     }
@@ -257,7 +257,7 @@
             for(let r=ROWS-1; r>=0; r--) { if(!board[r][c]) empty++; else if(empty > 0) { board[r+empty][c] = board[r][c]; board[r][c] = null; } }
             for(let i=0; i<empty; i++) board[i][c] = { color: Math.floor(Math.random()*5), el: null, isBomb: false };
         }
-        draw(); setTimeout(checkAndClear, 300);
+        draw(); setTimeout(checkAndClear, 200); // 重力後のチェックも早く
     }
 
     function gameOver() {
