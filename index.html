@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Bomb Blast Fix</title>
+    <title>Jewel Survival - Bomb Blast Final Fix</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; margin: 0; padding: 0; }
         body { 
@@ -26,7 +26,7 @@
         .is-bomb .gem-inner { border: 3px solid #fff; box-shadow: 0 0 15px #fff, 0 0 20px #ffd700; animation: bombRotate 2s linear infinite; }
         @keyframes bombRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
-        /* ★修正：最優先で強制的に飛び散らせるCSS */
+        /* 飛び散る演出用のCSS */
         .gem.is-exploded {
             transition: all 0.3s cubic-bezier(0.1, 0.5, 0.3, 1) !important;
             left: var(--explode-x) !important;
@@ -197,7 +197,11 @@
         for(let r=0; r<ROWS-1; r++) {
             for(let c=0; c<COLS-1; c++) {
                 const b1 = board[r][c], b2 = board[r+1][c], b3 = board[r][c+1], b4 = board[r+1][c+1];
-                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) m[r][c] = m[r+1][c] = m[r][c+1] = m[r+1][c+1] = true; bombCandidates.push({r, c, color: b1.color}); found = true; }
+                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) { 
+                    m[r][c] = m[r+1][c] = m[r][c+1] = m[r+1][c+1] = true; 
+                    bombCandidates.push({r, c, color: b1.color}); 
+                    found = true; 
+                }
             }
         }
 
@@ -244,7 +248,6 @@
                             el.style.transform = "scale(0.2) rotate(360deg)"; el.style.opacity = "0";
                             createParticles(c*SIZE, r*SIZE, tColorClass, 8, 0.5);
                         } else {
-                            // ★修正：CSS変数を使って優先度MAXでハジケ飛ぶように変更
                             const source = bombSources.length > 0 ? bombSources[0] : {r, c};
                             const angle = Math.atan2(r - source.r, c - source.c);
                             const explodeDist = SIZE * (1.5 + Math.random());
