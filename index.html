@@ -3,21 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival</title>
+    <title>Jewel Survival - Pixel Perfect</title>
     <style>
-        * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
+        * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-            text-align: center; background: #121212;
-            color: white; font-family: 'Arial Black', sans-serif; margin: 0; overflow: hidden; 
+            text-align: center; 
+            /* キミが選んだ黒ベースのカッコいいグラデーション */
+            background: radial-gradient(circle, #1f1235 0%, #0c0813 100%); 
+            color: white; font-family: 'Arial Black', sans-serif; overflow: hidden; 
             position: fixed; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
         }
-        #game-container { display: flex; flex-direction: column; align-items: center; width: 320px; }
+        #game-container { display: flex; flex-direction: column; align-items: center; width: 324px; }
         #score-box { font-size: 32px; color: #ffd700; text-shadow: 0 0 15px rgba(255,215,0,0.6); margin-bottom: 5px; }
         #timer-container { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; margin-bottom: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
         #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
-        #board { position: relative; width: 320px; height: 320px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; }
         
-        /* 速度UP: transitionを0.2sから0.15sへ */
+        /* ズームとズレを直した鉄壁のボード設定 */
+        #board { 
+            position: relative; 
+            width: 324px; height: 324px; /* 40px * 8 + border左右2px分 */
+            background: rgba(255, 255, 255, 0.03); 
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); 
+            border: 2px solid rgba(255, 255, 255, 0.2); 
+            border-radius: 12px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
+            overflow: hidden; 
+        }
+        
         .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: left 0.15s linear, top 0.15s linear, transform 0.15s linear; }
         .gem-inner { 
             width: 36px; height: 36px; border-radius: 10px; position: relative; 
@@ -52,7 +64,7 @@
         <div id="timer-container"><div id="timer-bar"></div></div>
         <div id="board"></div>
         <div id="overlay">
-            <h1 id="status-text" style="color:#00d2ff; font-size: 40px;">Jewel Survival</h1>
+            <h1 id="status-text" style="color:#00d2ff; font-size: 40px; margin-bottom: 20px;">Jewel Survival</h1>
             <div id="result-content" style="display:none; margin-bottom: 20px;">
                 <p>FINAL SCORE: <span id="final-score-display" style="font-size: 48px;">0</span></p>
                 <p style="color:#ffd700;">🏆 BEST: <span id="best-score-display">0</span></p>
@@ -170,7 +182,6 @@
         lastMoveTarget = {r: r2, c: c2};
         let t1 = board[r1][c1], t2 = board[r2][c2];
         board[r1][c1] = t2; board[r2][c2] = t1; draw();
-        // 速度UP: 200ms -> 150ms
         setTimeout(() => { if(!checkAndClear()) { board[r1][c1] = t1; board[r2][c2] = t2; lastMoveTarget = null; draw(); setTimeout(() => isAnimating = false, 150); } }, 150);
     }
 
@@ -219,7 +230,7 @@
                 const {r, c} = queue[head++];
                 if(head > 1) { 
                     comboCount++;
-                    setTimeout(() => { showComboEffect(comboCount, r, c); }, head * 80); // コンボ演出も少し早く
+                    setTimeout(() => { showComboEffect(comboCount, r, c); }, head * 80);
                 }
                 playEffect('bomb', head * 0.08);
                 for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) { let nr=r+dr, nc=c+dc; if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && !totalClearMask[nr][nc]) { totalClearMask[nr][nc] = true; if(board[nr][nc] && board[nr][nc].isBomb) queue.push({r: nr, c: nc}); } }
@@ -231,7 +242,7 @@
                     if(totalClearMask[r][c] && board[r][c]) {
                         const el = board[r][c].el;
                         const target = finalBombPosList[0] || {r, c}; 
-                        el.style.transition = "all 0.2s cubic-bezier(0.5, 0, 0.5, 1)"; // 消える速度UP
+                        el.style.transition = "all 0.2s cubic-bezier(0.5, 0, 0.5, 1)";
                         el.style.left = (target.c * SIZE) + "px"; el.style.top = (target.r * SIZE) + "px";
                         el.style.transform = "scale(0.2) rotate(180deg)"; el.style.opacity = "0";
                         setTimeout(() => el.remove(), 200);
@@ -244,9 +255,8 @@
             finalBombPosList.forEach(pos => { if(!board[pos.r][pos.c]) board[pos.r][pos.c] = { color: pos.color, el: null, isBomb: true }; else board[pos.r][pos.c].isBomb = true; });
             lastMoveTarget = null;
             score += clearedCount * 10 * comboCount; 
-            // ★回復量をさらに強化 (0.6 → 0.8)
             timeLeft = Math.min(100, timeLeft + (clearedCount * 0.8));
-            document.getElementById('score').innerText = score; setTimeout(applyGravity, 250); // 判定待ち短縮
+            document.getElementById('score').innerText = score; setTimeout(applyGravity, 250);
         } else { isAnimating = false; lastMoveTarget = null; }
         return found;
     }
@@ -257,7 +267,7 @@
             for(let r=ROWS-1; r>=0; r--) { if(!board[r][c]) empty++; else if(empty > 0) { board[r+empty][c] = board[r][c]; board[r][c] = null; } }
             for(let i=0; i<empty; i++) board[i][c] = { color: Math.floor(Math.random()*5), el: null, isBomb: false };
         }
-        draw(); setTimeout(checkAndClear, 200); // 重力後のチェックも早く
+        draw(); setTimeout(checkAndClear, 200);
     }
 
     function gameOver() {
