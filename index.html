@@ -258,6 +258,23 @@
         }
         touchStart = null;
     });
+
+    // ダブルタップによるズームを防止
+document.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) {
+        e.preventDefault(); // マルチタッチ（ピンチ）禁止
+    }
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        e.preventDefault(); // 0.3秒以内の連続タップ（ズーム）を無効化
+    }
+    lastTouchEnd = now;
+}, false);
+    
 </script>
 </body>
 </html>
