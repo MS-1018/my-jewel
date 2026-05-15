@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Bomb Blast Effect</title>
+    <title>Jewel Survival - Bomb Blast Fix</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; margin: 0; padding: 0; }
         body { 
@@ -26,10 +26,14 @@
         .is-bomb .gem-inner { border: 3px solid #fff; box-shadow: 0 0 15px #fff, 0 0 20px #ffd700; animation: bombRotate 2s linear infinite; }
         @keyframes bombRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
-        /* ★アプデ：飛び散る演出用のCSSクラス */
+        /* ★修正：最優先で強制的に飛び散らせるCSS */
         .gem.is-exploded {
-            transition: all 0.25s cubic-bezier(0.1, 0.5, 0.3, 1) !important; /* CSSで飛び散るアニメーション */
-            z-index: 10;
+            transition: all 0.3s cubic-bezier(0.1, 0.5, 0.3, 1) !important;
+            left: var(--explode-x) !important;
+            top: var(--explode-y) !important;
+            transform: scale(0.2) rotate(360deg) !important;
+            opacity: 0 !important;
+            z-index: 999 !important;
         }
         
         .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff2a2a); }
@@ -38,7 +42,6 @@
         .c3 { background: radial-gradient(circle at 30% 30%, #92fe9d, #00c9ff); }
         .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); }
         
-        /* ★アプデ：パーティクル（破片）を少し大きく */
         .particle { position: absolute; width: 7px; height: 7px; border-radius: 2px; pointer-events: none; z-index: 10; }
         .combo-text { position: absolute; width: 100%; text-align: center; font-size: 38px; color: #fff; text-shadow: 0 0 15px #ff00de, 0 0 5px #000; font-style: italic; pointer-events: none; z-index: 20; animation: comboPop 0.5s ease-out forwards; }
         @keyframes comboPop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
@@ -119,7 +122,6 @@
         playEffect('combo');
     }
 
-    // ★アプデ：パーティクル（破片）を増量 & 飛び散る設定
     function createParticles(x, y, colorClass, count=24, speedFactor=1) {
         const pRef = document.querySelector('.' + colorClass);
         const gemColor = pRef ? getComputedStyle(pRef).backgroundColor : "#fff";
@@ -195,7 +197,7 @@
         for(let r=0; r<ROWS-1; r++) {
             for(let c=0; c<COLS-1; c++) {
                 const b1 = board[r][c], b2 = board[r+1][c], b3 = board[r][c+1], b4 = board[r+1][c+1];
-                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) { m[r][c] = m[r+1][c] = m[r][c+1] = m[r+1][c+1] = true; bombCandidates.push({r, c, color: b1.color}); found = true; }
+                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) m[r][c] = m[r+1][c] = m[r][c+1] = m[r+1][c+1] = true; bombCandidates.push({r, c, color: b1.color}); found = true; }
             }
         }
 
@@ -225,7 +227,6 @@
                 for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) { let nr=r+dr, nc=c+dc; if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && !totalClearMask[nr][nc]) { totalClearMask[nr][nc] = true; if(board[nr][nc] && board[nr][nc].isBomb) queue.push({r: nr, c: nc}); } }
             }
             
-            // ★アプデ：吸い込みセンターリスト（ボムがあった場所）
             const bombSources = queue.map(q => ({r: q.r, c: q.c}));
 
             let clearedCount = 0;
@@ -235,29 +236,25 @@
                         const el = board[r][c].el;
                         const tColorClass = 'c'+board[r][c].color;
                         
-                        // ★アプデ：飛び散る演出のロジック
                         const isSelfBomb = board[r][c].isBomb;
                         if(isSelfBomb) {
-                            // ボム自体は中央に吸い込まれて消える（今までの演出）
                             const target = finalBombPosList[0] || {r, c}; 
                             el.style.transition = "all 0.3s cubic-bezier(0.5, 0, 0.5, 1)";
                             el.style.left = (target.c * SIZE) + "px"; el.style.top = (target.r * SIZE) + "px";
                             el.style.transform = "scale(0.2) rotate(360deg)"; el.style.opacity = "0";
-                            createParticles(c*SIZE, r*SIZE, tColorClass, 8, 0.5); // パーティクルは少なめ、遅めに
+                            createParticles(c*SIZE, r*SIZE, tColorClass, 8, 0.5);
                         } else {
-                            // ★アプデ：周囲のジェムは爆発地点から「外」へ弾け飛ぶ
+                            // ★修正：CSS変数を使って優先度MAXでハジケ飛ぶように変更
                             const source = bombSources.length > 0 ? bombSources[0] : {r, c};
-                            const angle = Math.atan2(r - source.r, c - source.c); // 爆発地点からの角度
-                            const dist = Math.sqrt((r-source.r)**2 + (c-source.c)**2) || 1; // 爆発地点からの距離
-                            const explodeDist = SIZE * (1.5 + Math.random()); // 飛び散る距離
+                            const angle = Math.atan2(r - source.r, c - source.c);
+                            const explodeDist = SIZE * (1.5 + Math.random());
 
+                            const ex = (c * SIZE + Math.cos(angle) * explodeDist) + "px";
+                            const ey = (r * SIZE + Math.sin(angle) * explodeDist) + "px";
+                            el.style.setProperty('--explode-x', ex);
+                            el.style.setProperty('--explode-y', ey);
                             el.classList.add('is-exploded');
-                            el.style.left = (c * SIZE + Math.cos(angle) * explodeDist) + "px";
-                            el.style.top = (r * SIZE + Math.sin(angle) * explodeDist) + "px";
-                            el.style.transform = `scale(0.3) rotate(${180 + Math.random()*360}deg)`;
-                            el.style.opacity = "0";
                             
-                            // パーティクル増量 & スピードアップ
                             createParticles(c*SIZE, r*SIZE, tColorClass, 24, 1.5); 
                         }
 
@@ -271,7 +268,7 @@
             lastMoveTarget = null;
             score += clearedCount * 10 * comboCount; 
             timeLeft = Math.min(100, timeLeft + (clearedCount * 0.8));
-            document.getElementById('score').innerText = score; setTimeout(applyGravity, 300); // 演出に合わせて少し待ちを長く
+            document.getElementById('score').innerText = score; setTimeout(applyGravity, 300);
         } else { isAnimating = false; lastMoveTarget = null; }
         return found;
     }
