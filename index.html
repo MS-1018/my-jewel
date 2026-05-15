@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Pro Edition</title>
+    <title>Jewel Survival - Burst & Core</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         body { 
@@ -18,6 +18,7 @@
         #board { position: relative; width: 320px; height: 320px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; }
         .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: left 0.2s linear, top 0.2s linear, transform 0.2s linear; }
         .gem-inner { width: 36px; height: 36px; border-radius: 10px; position: relative; box-shadow: inset -4px -4px 6px rgba(0,0,0,0.4), inset 4px 4px 6px rgba(255,255,255,0.4), 0 4px 8px rgba(0,0,0,0.3); }
+        .is-bomb { z-index: 5; }
         .is-bomb .gem-inner { border: 3px solid #fff; box-shadow: 0 0 15px #fff, 0 0 20px #ffd700; animation: bombRotate 2s linear infinite; }
         @keyframes bombRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .gem-inner::after { content: ''; position: absolute; top: 15%; left: 15%; width: 35%; height: 20%; background: rgba(255, 255, 255, 0.4); border-radius: 50%; transform: rotate(-30deg); }
@@ -139,7 +140,7 @@
                     boardEl.appendChild(d.el); d.el.style.left = (c * SIZE) + 'px'; d.el.style.top = '-40px'; d.el.style.transform = 'scale(0)';
                 }
                 if(d.isBomb && !d.el.classList.contains('is-bomb')) d.el.classList.add('is-bomb');
-                d.el.style.left = (c * SIZE) + 'px'; d.el.style.top = (r * SIZE) + 'px'; d.el.style.transform = 'scale(1)';
+                d.el.style.left = (c * SIZE) + 'px'; d.el.style.top = (r * SIZE) + 'px'; d.el.style.transform = 'scale(1)'; d.el.style.opacity = "1";
             }
         }
     }
@@ -184,12 +185,32 @@
                 const {r, c} = queue[head++]; playEffect('bomb', head * 0.08);
                 for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) { let nr=r+dr, nc=c+dc; if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && !totalClearMask[nr][nc]) { totalClearMask[nr][nc] = true; if(board[nr][nc] && board[nr][nc].isBomb) queue.push({r: nr, c: nc}); } }
             }
+            
+            // ★吸引演出：ボムができる予定地を特定
             let clearedCount = 0;
-            for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) { if(totalClearMask[r][c] && board[r][c]) { createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, 12); const el = board[r][c].el; el.style.transform = 'scale(0)'; setTimeout(() => el.remove(), 200); board[r][c] = null; clearedCount++; } }
-            // ★ボム生成の優先度修正
+            for(let r=0; r<ROWS; r++) {
+                for(let c=0; c<COLS; c++) {
+                    if(totalClearMask[r][c] && board[r][c]) {
+                        const el = board[r][c].el;
+                        const targetPos = bombCandidates.find(p => totalClearMask[p.r][p.c]) || {r, c};
+                        
+                        // 中心へ吸い込まれるアニメーション
+                        el.style.transition = "all 0.3s cubic-bezier(0.5, 0, 0.5, 1)";
+                        el.style.left = (targetPos.c * SIZE) + "px";
+                        el.style.top = (targetPos.r * SIZE) + "px";
+                        el.style.transform = "scale(0.2) rotate(180deg)";
+                        el.style.opacity = "0";
+                        
+                        setTimeout(() => el.remove(), 300);
+                        createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, 8);
+                        board[r][c] = null; clearedCount++;
+                    }
+                }
+            }
+            
             bombCandidates.forEach(pos => { if(!board[pos.r][pos.c]) board[pos.r][pos.c] = { color: pos.color, el: null, isBomb: true }; else board[pos.r][pos.c].isBomb = true; });
             score += clearedCount * 10 * comboCount; timeLeft = Math.min(100, timeLeft + (clearedCount * 0.8));
-            document.getElementById('score').innerText = score; setTimeout(applyGravity, 200);
+            document.getElementById('score').innerText = score; setTimeout(applyGravity, 350); // アニメーション待ちを少し長く
         } else isAnimating = false;
         return found;
     }
@@ -200,7 +221,7 @@
             for(let r=ROWS-1; r>=0; r--) { if(!board[r][c]) empty++; else if(empty > 0) { board[r+empty][c] = board[r][c]; board[r][c] = null; } }
             for(let i=0; i<empty; i++) board[i][c] = { color: Math.floor(Math.random()*5), el: null, isBomb: false };
         }
-        draw(); setTimeout(checkAndClear, 250);
+        draw(); setTimeout(checkAndClear, 300);
     }
 
     function gameOver() {
