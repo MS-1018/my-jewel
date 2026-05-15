@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Pixel Perfect</title>
+    <title>Jewel Survival - Bomb Blast Effect</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-            text-align: center; 
-           background: #121212;
+            text-align: center; background: #️121212; 
             color: white; font-family: 'Arial Black', sans-serif; overflow: hidden; 
             position: fixed; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
         }
@@ -17,32 +16,21 @@
         #timer-container { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; margin-bottom: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
         #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
         
-        /* ズームとズレを直した鉄壁のボード設定 */
-        #board { 
-            position: relative; 
-            width: 324px; height: 324px; /* 40px * 8 + border左右2px分 */
-            background: rgba(255, 255, 255, 0.03); 
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); 
-            border: 2px solid rgba(255, 255, 255, 0.2); 
-            border-radius: 12px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
-            overflow: hidden; 
-        }
+        #board { position: relative; width: 324px; height: 324px; background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); overflow: hidden; }
         
         .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: left 0.15s linear, top 0.15s linear, transform 0.15s linear; }
-        .gem-inner { 
-            width: 36px; height: 36px; border-radius: 10px; position: relative; 
-            box-shadow: inset -4px -4px 6px rgba(0,0,0,0.4), inset 4px 4px 6px rgba(255,255,255,0.5), 0 4px 8px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .gem-inner::after {
-            content: ''; position: absolute; top: 15%; left: 15%; width: 35%; height: 25%;
-            background: rgba(255, 255, 255, 0.4); border-radius: 50%; pointer-events: none;
-        }
+        .gem-inner { width: 36px; height: 36px; border-radius: 10px; position: relative; box-shadow: inset -4px -4px 6px rgba(0,0,0,0.4), inset 4px 4px 6px rgba(255,255,255,0.5), 0 4px 8px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); }
+        .gem-inner::after { content: ''; position: absolute; top: 15%; left: 15%; width: 35%; height: 25%; background: rgba(255, 255, 255, 0.4); border-radius: 50%; pointer-events: none; }
 
         .is-bomb { z-index: 5; }
         .is-bomb .gem-inner { border: 3px solid #fff; box-shadow: 0 0 15px #fff, 0 0 20px #ffd700; animation: bombRotate 2s linear infinite; }
         @keyframes bombRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        /* ★アプデ：飛び散る演出用のCSSクラス */
+        .gem.is-exploded {
+            transition: all 0.25s cubic-bezier(0.1, 0.5, 0.3, 1) !important; /* CSSで飛び散るアニメーション */
+            z-index: 10;
+        }
         
         .c0 { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff2a2a); }
         .c1 { background: radial-gradient(circle at 30% 30%, #ffdb01, #e17009); }
@@ -50,7 +38,8 @@
         .c3 { background: radial-gradient(circle at 30% 30%, #92fe9d, #00c9ff); }
         .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); }
         
-        .particle { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 10; }
+        /* ★アプデ：パーティクル（破片）を少し大きく */
+        .particle { position: absolute; width: 7px; height: 7px; border-radius: 2px; pointer-events: none; z-index: 10; }
         .combo-text { position: absolute; width: 100%; text-align: center; font-size: 38px; color: #fff; text-shadow: 0 0 15px #ff00de, 0 0 5px #000; font-style: italic; pointer-events: none; z-index: 20; animation: comboPop 0.5s ease-out forwards; }
         @keyframes comboPop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
@@ -130,14 +119,15 @@
         playEffect('combo');
     }
 
-    function createParticles(x, y, colorClass, count=12) {
+    // ★アプデ：パーティクル（破片）を増量 & 飛び散る設定
+    function createParticles(x, y, colorClass, count=24, speedFactor=1) {
         const pRef = document.querySelector('.' + colorClass);
         const gemColor = pRef ? getComputedStyle(pRef).backgroundColor : "#fff";
         for(let i=0; i<count; i++) {
             const p = document.createElement('div'); p.className = 'particle'; p.style.backgroundColor = gemColor;
             p.style.left = (x + 20) + 'px'; p.style.top = (y + 20) + 'px'; boardEl.appendChild(p);
-            const angle = Math.random() * Math.PI * 2, v = 2 + Math.random() * 6, vx = Math.cos(angle) * v, vy = Math.sin(angle) * v;
-            let op = 1; const animateP = () => { const curX = parseFloat(p.style.left) + vx, curY = parseFloat(p.style.top) + vy; op -= 0.03; p.style.left = curX + 'px'; p.style.top = curY + 'px'; p.style.opacity = op; if(op > 0) requestAnimationFrame(animateP); else p.remove(); };
+            const angle = Math.random() * Math.PI * 2, v = (2 + Math.random() * 8) * speedFactor, vx = Math.cos(angle) * v, vy = Math.sin(angle) * v;
+            let op = 1; let rotation = 0; const animateP = () => { const curX = parseFloat(p.style.left) + vx, curY = parseFloat(p.style.top) + vy; op -= 0.03 * (2-speedFactor); rotation += 5; p.style.left = curX + 'px'; p.style.top = curY + 'px'; p.style.opacity = op; p.style.transform = `rotate(${rotation}deg)`; if(op > 0) requestAnimationFrame(animateP); else p.remove(); };
             requestAnimationFrame(animateP);
         }
     }
@@ -235,17 +225,43 @@
                 for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) { let nr=r+dr, nc=c+dc; if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && !totalClearMask[nr][nc]) { totalClearMask[nr][nc] = true; if(board[nr][nc] && board[nr][nc].isBomb) queue.push({r: nr, c: nc}); } }
             }
             
+            // ★アプデ：吸い込みセンターリスト（ボムがあった場所）
+            const bombSources = queue.map(q => ({r: q.r, c: q.c}));
+
             let clearedCount = 0;
             for(let r=0; r<ROWS; r++) {
                 for(let c=0; c<COLS; c++) {
                     if(totalClearMask[r][c] && board[r][c]) {
                         const el = board[r][c].el;
-                        const target = finalBombPosList[0] || {r, c}; 
-                        el.style.transition = "all 0.2s cubic-bezier(0.5, 0, 0.5, 1)";
-                        el.style.left = (target.c * SIZE) + "px"; el.style.top = (target.r * SIZE) + "px";
-                        el.style.transform = "scale(0.2) rotate(180deg)"; el.style.opacity = "0";
-                        setTimeout(() => el.remove(), 200);
-                        createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, 8);
+                        const tColorClass = 'c'+board[r][c].color;
+                        
+                        // ★アプデ：飛び散る演出のロジック
+                        const isSelfBomb = board[r][c].isBomb;
+                        if(isSelfBomb) {
+                            // ボム自体は中央に吸い込まれて消える（今までの演出）
+                            const target = finalBombPosList[0] || {r, c}; 
+                            el.style.transition = "all 0.3s cubic-bezier(0.5, 0, 0.5, 1)";
+                            el.style.left = (target.c * SIZE) + "px"; el.style.top = (target.r * SIZE) + "px";
+                            el.style.transform = "scale(0.2) rotate(360deg)"; el.style.opacity = "0";
+                            createParticles(c*SIZE, r*SIZE, tColorClass, 8, 0.5); // パーティクルは少なめ、遅めに
+                        } else {
+                            // ★アプデ：周囲のジェムは爆発地点から「外」へ弾け飛ぶ
+                            const source = bombSources.length > 0 ? bombSources[0] : {r, c};
+                            const angle = Math.atan2(r - source.r, c - source.c); // 爆発地点からの角度
+                            const dist = Math.sqrt((r-source.r)**2 + (c-source.c)**2) || 1; // 爆発地点からの距離
+                            const explodeDist = SIZE * (1.5 + Math.random()); // 飛び散る距離
+
+                            el.classList.add('is-exploded');
+                            el.style.left = (c * SIZE + Math.cos(angle) * explodeDist) + "px";
+                            el.style.top = (r * SIZE + Math.sin(angle) * explodeDist) + "px";
+                            el.style.transform = `scale(0.3) rotate(${180 + Math.random()*360}deg)`;
+                            el.style.opacity = "0";
+                            
+                            // パーティクル増量 & スピードアップ
+                            createParticles(c*SIZE, r*SIZE, tColorClass, 24, 1.5); 
+                        }
+
+                        setTimeout(() => el.remove(), 300);
                         board[r][c] = null; clearedCount++;
                     }
                 }
@@ -255,7 +271,7 @@
             lastMoveTarget = null;
             score += clearedCount * 10 * comboCount; 
             timeLeft = Math.min(100, timeLeft + (clearedCount * 0.8));
-            document.getElementById('score').innerText = score; setTimeout(applyGravity, 250);
+            document.getElementById('score').innerText = score; setTimeout(applyGravity, 300); // 演出に合わせて少し待ちを長く
         } else { isAnimating = false; lastMoveTarget = null; }
         return found;
     }
