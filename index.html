@@ -17,7 +17,31 @@
         #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #92fe9d); transition: width 0.1s linear; }
         #board { position: relative; width: 320px; height: 320px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; }
         .gem { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: left 0.2s linear, top 0.2s linear, transform 0.2s linear; }
-        .gem-inner { width: 36px; height: 36px; border-radius: 10px; position: relative; box-shadow: inset -4px -4px 6px rgba(0,0,0,0.4), inset 4px 4px 6px rgba(255,255,255,0.4), 0 4px 8px rgba(0,0,0,0.3); }
+        .gem-inner { 
+            width: 36px; 
+            height: 36px; 
+            border-radius: 10px; 
+            position: relative; 
+            /* ↓ ここがツヤの正体！ */
+            box-shadow: 
+                inset -4px -4px 6px rgba(0,0,0,0.4), 
+                inset 4px 4px 6px rgba(255,255,255,0.6), 
+                0 4px 8px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* さらに反射光（ハイライト）を足すならこれ */
+        .gem-inner::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 40%;
+            height: 30%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            pointer-events: none;
+        }
         .is-bomb { z-index: 5; }
         .is-bomb .gem-inner { border: 3px solid #fff; box-shadow: 0 0 15px #fff, 0 0 20px #ffd700; animation: bombRotate 2s linear infinite; }
         @keyframes bombRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
