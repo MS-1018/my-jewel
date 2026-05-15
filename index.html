@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jewel Survival - Clean Start</title>
+    <title>Jewel Survival - Pro Edition</title>
     <style>
         * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
         body { 
@@ -28,7 +28,6 @@
         .c4 { background: radial-gradient(circle at 30% 30%, #ee9ca7, #ff29bd); }
         .particle { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 10; }
         .combo-text { position: absolute; width: 100%; text-align: center; font-size: 42px; color: #fff; text-shadow: 0 0 15px #ff00de, 0 0 5px #000; font-style: italic; pointer-events: none; z-index: 20; animation: comboPop 0.6s ease-out forwards; }
-        @keyframes comboPop { 0% { transform: scale(0.5); opacity: 0; } 20% { transform: scale(1.4); opacity: 1; } 100% { transform: scale(1.2) translateY(-40px); opacity: 0; } }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
         #startBtn { padding: 15px 50px; border-radius: 40px; border: none; background: #fff; color: #000; font-weight: bold; font-size: 24px; box-shadow: 0 0 20px rgba(255,255,255,0.4); cursor: pointer; }
     </style>
@@ -63,8 +62,7 @@
         compressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
         masterGain = audioCtx.createGain();
         masterGain.gain.setValueAtTime(0.6, audioCtx.currentTime);
-        compressor.connect(masterGain);
-        masterGain.connect(audioCtx.destination);
+        compressor.connect(masterGain); masterGain.connect(audioCtx.destination);
     }
 
     function playEffect(type, delay = 0) {
@@ -118,18 +116,11 @@
         isGameOver = false; isAnimating = false; score = 0; timeLeft = 100; comboCount = 0;
         overlay.style.display = 'none'; document.getElementById('score').innerText = score;
         boardEl.innerHTML = ''; board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
-        
-        // ★連ならない初期配置を生成
         for(let r=0; r<ROWS; r++) {
             for(let c=0; c<COLS; c++) {
                 let color;
-                do {
-                    color = Math.floor(Math.random()*5);
-                } while (
-                    (c >= 2 && board[r][c-1].color === color && board[r][c-2].color === color) || // 横3つ回避
-                    (r >= 2 && board[r-1][c].color === color && board[r-2][c].color === color) || // 縦3つ回避
-                    (r >= 1 && c >= 1 && board[r-1][c].color === color && board[r][c-1].color === color && board[r-1][c-1].color === color) // 2x2回避
-                );
+                do { color = Math.floor(Math.random()*5); } 
+                while ((c >= 2 && board[r][c-1].color === color && board[r][c-2].color === color) || (r >= 2 && board[r-1][c].color === color && board[r-2][c].color === color) || (r >= 1 && c >= 1 && board[r-1][c].color === color && board[r][c-1].color === color && board[r-1][c-1].color === color));
                 board[r][c] = { color: color, el: null, isBomb: false };
             }
         }
@@ -148,8 +139,7 @@
                     boardEl.appendChild(d.el); d.el.style.left = (c * SIZE) + 'px'; d.el.style.top = '-40px'; d.el.style.transform = 'scale(0)';
                 }
                 if(d.isBomb && !d.el.classList.contains('is-bomb')) d.el.classList.add('is-bomb');
-                const targetTop = (r * SIZE) + 'px', targetLeft = (c * SIZE) + 'px';
-                setTimeout(() => { if(d.el) { d.el.style.left = targetLeft; d.el.style.top = targetTop; d.el.style.transform = 'scale(1)'; } }, 10);
+                d.el.style.left = (c * SIZE) + 'px'; d.el.style.top = (r * SIZE) + 'px'; d.el.style.transform = 'scale(1)';
             }
         }
     }
@@ -181,7 +171,7 @@
         for(let r=0; r<ROWS-1; r++) {
             for(let c=0; c<COLS-1; c++) {
                 const b1 = board[r][c], b2 = board[r+1][c], b3 = board[r][c+1], b4 = board[r+1][c+1];
-                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) { m[r][c] = m[r+1][c] = m[r][c+1] = m[r+1][c+1] = true; if(!found) bombCandidates.push({r, c, color: b1.color}); found = true; }
+                if(b1 && b2 && b3 && b4 && b1.color === b2.color && b1.color === b3.color && b1.color === b4.color) { m[r][c] = m[r+1][c] = m[r][c+1] = m[r+1][c+1] = true; bombCandidates.push({r, c, color: b1.color}); found = true; }
             }
         }
         if(found) {
@@ -196,7 +186,8 @@
             }
             let clearedCount = 0;
             for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) { if(totalClearMask[r][c] && board[r][c]) { createParticles(c*SIZE, r*SIZE, 'c'+board[r][c].color, 12); const el = board[r][c].el; el.style.transform = 'scale(0)'; setTimeout(() => el.remove(), 200); board[r][c] = null; clearedCount++; } }
-            bombCandidates.forEach(pos => { if(!board[pos.r][pos.c]) board[pos.r][pos.c] = { color: pos.color, el: null, isBomb: true }; });
+            // ★ボム生成の優先度修正
+            bombCandidates.forEach(pos => { if(!board[pos.r][pos.c]) board[pos.r][pos.c] = { color: pos.color, el: null, isBomb: true }; else board[pos.r][pos.c].isBomb = true; });
             score += clearedCount * 10 * comboCount; timeLeft = Math.min(100, timeLeft + (clearedCount * 0.8));
             document.getElementById('score').innerText = score; setTimeout(applyGravity, 200);
         } else isAnimating = false;
